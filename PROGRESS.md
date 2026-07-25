@@ -21,7 +21,7 @@ Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 | 2 | Location | ✅ done | Sonnet | `LocationBar` (unset form + set summary), CEP/GPS via `/api/cep`, raio picker, persists across restarts |
 | 3 | Scan → parsed nota | ✅ done | Sonnet | `mobile_scanner` (QR for nota, EAN for produto) + manual-paste fallback; content-based routing so a mis-scanned barcode still lands on Produto |
 | 4 | Pricing + savings | ✅ done | **Opus** | Pooled `/api/precos` (6), `computeSavings` + the paid-price outlier guard, cheapest-nearby report; R$ 24,92 on the sample nota |
-| 5 | Receipt, second pass | ⬜ todo | Sonnet | Store picker, single-store basket, categories |
+| 5 | Receipt, second pass | ✅ done | Sonnet | Store picker (sheet) + single-store basket with green/red deltas and "não vendidos nesta loja"; collapsible categories panel; dismissible weekday day-tip (`tendencias.dart`) |
 | 6 | Minhas Notas | ⬜ todo | Sonnet | History, re-open, re-price, clear |
 
 ## Home

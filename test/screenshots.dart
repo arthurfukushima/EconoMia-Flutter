@@ -157,10 +157,21 @@ void main() {
 
   // The cheapest-nearby report: savings hero, per-line offers, the "aprox."
   // flag on a description match, a dearer item that appears in neither list,
-  // and the uncompared section.
-  testWidgets('shots — receipt, priced', (tester) async {
+  // and the uncompared section. Also carries `precos.stores[]` on most lines,
+  // which is what makes the store picker (Phase 5) appear — CONDOR (cod '1')
+  // is priced on four of the six items, including one it's dearer on, so the
+  // single-store basket shot below has both a green and a red delta to show.
+  Receipt pricedSample() {
     final ontem = DateTime.now().subtract(const Duration(days: 1)).toIso8601String();
-    Precos precos(int cents, String store, String bairro, double km, {String confidence = 'high'}) => Precos(
+    Precos precos(
+      int cents,
+      String store,
+      String bairro,
+      double km, {
+      String confidence = 'high',
+      List<Offer> stores = const [],
+    }) =>
+        Precos(
           basis: confidence == 'high' ? 'gtin' : 'desc',
           confidence: confidence,
           cheapest: Offer(
@@ -171,70 +182,149 @@ void main() {
             addr: 'RUA TAPUIAS, 845, $bairro, LONDRINA - PR',
             datahora: ontem,
           ),
+          stores: stores,
+        );
+    Offer at(String cod, int cents, String store, String bairro, double km) => Offer(
+          cod: cod,
+          priceCents: cents,
+          store: store,
+          bairro: bairro,
+          km: km,
+          datahora: ontem,
         );
 
-    await receiptShot(
-      tester,
-      Receipt(
-        accessKey: '41250712345678000190650010000123451987654322',
-        enrichedAt: DateTime.now().millisecondsSinceEpoch,
-        locationCep: '86010000',
-        header: const ReceiptHeader(
-          storeName: 'MUFFATO SUPERCENTER',
-          city: 'Londrina',
-          purchasedAt: '19/07/2026 18:32:10',
-          totalCents: 9468,
-        ),
-        items: [
-          ReceiptItem(
-            description: 'LEITE INTEGRAL ITALAC 1L',
-            unit: 'UN',
-            qty: 6,
-            unitPriceCents: 449,
-            lineTotalCents: 2694,
-            precos: precos(398, 'CONDOR', 'Gleba Palhano', 2.4),
-          ),
-          ReceiptItem(
-            description: 'CAFE PILAO TRADICIONAL 500G',
-            unit: 'UN',
-            qty: 2,
-            unitPriceCents: 1590,
-            lineTotalCents: 3180,
-            precos: precos(1349, 'SUPER MUFFATO', 'Centro', 1.1),
-          ),
-          ReceiptItem(
-            description: 'BANANA NANICA',
-            unit: 'KG',
-            qty: 1.235,
-            unitPriceCents: 499,
-            lineTotalCents: 616,
-            precos: precos(349, 'HORTIFRUTI SANTARÉM', 'Vila Casoni', 3.8, confidence: 'approx'),
-          ),
-          ReceiptItem(
-            description: 'FEIJAO CARIOCA KICALDO 1KG',
-            unit: 'UN',
-            qty: 2,
-            unitPriceCents: 849,
-            lineTotalCents: 1698,
-            precos: precos(879, 'CONDOR', 'Gleba Palhano', 2.4),
-          ),
-          const ReceiptItem(
-            description: 'DETERGENTE YPE NEUTRO 500ML',
-            unit: 'UN',
-            qty: 4,
-            unitPriceCents: 249,
-            lineTotalCents: 996,
-          ),
-          const ReceiptItem(
-            description: 'PAO FRANCES',
-            unit: 'KG',
-            qty: 0.42,
-            unitPriceCents: 1290,
-            lineTotalCents: 542,
-          ),
-        ],
+    return Receipt(
+      accessKey: '41250712345678000190650010000123451987654322',
+      enrichedAt: DateTime.now().millisecondsSinceEpoch,
+      locationCep: '86010000',
+      header: const ReceiptHeader(
+        storeName: 'MUFFATO SUPERCENTER',
+        city: 'Londrina',
+        purchasedAt: '19/07/2026 18:32:10',
+        totalCents: 9468,
       ),
-      'receipt_priced',
+      items: [
+        ReceiptItem(
+          description: 'LEITE INTEGRAL ITALAC 1L',
+          unit: 'UN',
+          qty: 6,
+          unitPriceCents: 449,
+          lineTotalCents: 2694,
+          precos: precos(
+            398,
+            'CONDOR',
+            'Gleba Palhano',
+            2.4,
+            stores: [
+              at('1', 398, 'CONDOR', 'Gleba Palhano', 2.4),
+              at('2', 410, 'SUPER MUFFATO', 'Centro', 1.1),
+            ],
+          ),
+        ),
+        ReceiptItem(
+          description: 'CAFE PILAO TRADICIONAL 500G',
+          unit: 'UN',
+          qty: 2,
+          unitPriceCents: 1590,
+          lineTotalCents: 3180,
+          precos: precos(
+            1349,
+            'SUPER MUFFATO',
+            'Centro',
+            1.1,
+            stores: [
+              at('2', 1349, 'SUPER MUFFATO', 'Centro', 1.1),
+              at('1', 1650, 'CONDOR', 'Gleba Palhano', 2.4),
+            ],
+          ),
+        ),
+        ReceiptItem(
+          description: 'BANANA NANICA',
+          unit: 'KG',
+          qty: 1.235,
+          unitPriceCents: 499,
+          lineTotalCents: 616,
+          precos: precos(
+            349,
+            'HORTIFRUTI SANTARÉM',
+            'Vila Casoni',
+            3.8,
+            confidence: 'approx',
+            stores: [at('3', 349, 'HORTIFRUTI SANTARÉM', 'Vila Casoni', 3.8)],
+          ),
+        ),
+        ReceiptItem(
+          description: 'FEIJAO CARIOCA KICALDO 1KG',
+          unit: 'UN',
+          qty: 2,
+          unitPriceCents: 849,
+          lineTotalCents: 1698,
+          precos: precos(
+            879,
+            'CONDOR',
+            'Gleba Palhano',
+            2.4,
+            stores: [at('1', 879, 'CONDOR', 'Gleba Palhano', 2.4)],
+          ),
+        ),
+        const ReceiptItem(
+          description: 'DETERGENTE YPE NEUTRO 500ML',
+          unit: 'UN',
+          qty: 4,
+          unitPriceCents: 249,
+          lineTotalCents: 996,
+        ),
+        const ReceiptItem(
+          description: 'PAO FRANCES',
+          unit: 'KG',
+          qty: 0.42,
+          unitPriceCents: 1290,
+          lineTotalCents: 542,
+        ),
+      ],
     );
+  }
+
+  testWidgets('shots — receipt, priced', (tester) async {
+    await receiptShot(tester, pricedSample(), 'receipt_priced');
+  });
+
+  // Phase 5: the store picker opened, the category breakdown expanded, and —
+  // after picking CONDOR — the single-store basket with both a green delta
+  // (LEITE) and a red one (CAFE, FEIJAO), plus the "não vendidos nesta loja"
+  // section for what CONDOR doesn't carry.
+  testWidgets('shots — receipt, second pass', (tester) async {
+    await _loadFonts();
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final receipt = pricedSample();
+    SharedPreferences.setMockInitialValues({});
+    final setUp = await tester.runAsync(() async {
+      final repo = ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('receipt_second_pass.db'));
+      await repo.saveReceipt(receipt);
+      return (repo, Prefs(await SharedPreferences.getInstance()));
+    });
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        receiptRepositoryProvider.overrideWithValue(setUp!.$1),
+        prefsProvider.overrideWithValue(setUp.$2),
+      ],
+      child: MaterialApp(theme: buildTheme(), home: ReceiptScreen(accessKey: receipt.accessKey)),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Categorias da nota (5)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mais barato por perto'));
+    await tester.pumpAndSettle();
+    // The sheet's ListTile title, an exact match unlike the OfferSpan text
+    // behind it (which carries the same store name plus price and distance).
+    await tester.tap(find.text('CONDOR · Gleba Palhano'));
+    await tester.pumpAndSettle();
+
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/receipt_second_pass.png'));
   });
 }

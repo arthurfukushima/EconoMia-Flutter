@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/economia_api.dart';
 import '../../data/enrichment.dart';
+import '../../data/models/precos.dart';
 import '../../data/models/receipt.dart';
 import '../../data/receipt_repository.dart';
 import '../location/location_controller.dart';
@@ -20,6 +21,13 @@ final receiptProvider = FutureProvider.autoDispose.family<Receipt?, String>(
 
 final receiptControllerProvider = NotifierProvider<ReceiptController, void>(
   ReceiptController.new,
+);
+
+/// Every accumulated price sighting, across every priced receipt — what the
+/// day tip's weekday-trend detection reasons over. autoDispose: cheap to
+/// refetch, no reason to hold it once the receipt screen closes.
+final offersProvider = FutureProvider.autoDispose<List<PriceObservation>>(
+  (ref) => ref.watch(receiptRepositoryProvider).listOffers(),
 );
 
 class ReceiptController extends Notifier<void> {
