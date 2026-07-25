@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/scan/scan_chooser.dart';
 import '../theme/tokens.dart';
 import 'bottom_nav.dart';
+import 'location_bar.dart';
 import 'wordmark.dart';
 
 /// The persistent frame: wordmark on top, tab bar at the bottom, the selected
@@ -32,7 +33,12 @@ class AppShell extends StatelessWidget {
           child: Divider(height: 1.5, color: Theme.of(context).sa.stroke),
         ),
       ),
-      body: navigationShell,
+      body: Column(
+        children: [
+          const LocationBar(),
+          Expanded(child: navigationShell),
+        ],
+      ),
       bottomNavigationBar: BottomNav(
         currentIndex: navigationShell.currentIndex,
         // `initialLocation: true` on a re-tap pops that branch back to its root,

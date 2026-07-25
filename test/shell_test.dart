@@ -1,15 +1,22 @@
 import 'package:economia/app.dart';
+import 'package:economia/data/prefs.dart';
 import 'package:economia/router.dart';
 import 'package:economia/widgets/bottom_nav.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   // The router is a single global, so each test must start it back at the top.
   tearDown(() => router.go('/splash'));
 
   Future<void> bootToHome(WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: EconoMiaApp()));
+    SharedPreferences.setMockInitialValues({});
+    final prefs = Prefs(await SharedPreferences.getInstance());
+    await tester.pumpWidget(ProviderScope(
+      overrides: [prefsProvider.overrideWithValue(prefs)],
+      child: const EconoMiaApp(),
+    ));
     // Sit through the splash animation, which hands over to Home when it ends.
     await tester.pumpAndSettle();
   }

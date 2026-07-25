@@ -7,15 +7,46 @@ Points. UI language is **pt-BR**. Android + iOS (Android 8 / iOS 13).
 `Docs/` is the product source of truth — vision, features, branding, gamification,
 home screen spec. Read the relevant one before building a feature.
 
-## Phase status — update it as you go
+## Executing a phase
 
-`PROGRESS.md` tracks the 17 build phases and is the only status surface.
+`PROGRESS.md` tracks the 17 build phases and `.claude/phases.json` holds the
+model mapping. When asked to build, run, execute or continue a phase — by number
+or by name — follow this order:
 
-- Flip a phase to 🟨 **before** writing its first line of code.
-- Flip it to ✅ only once its stated deliverable actually runs **and**
-  `flutter analyze` and `flutter test` are clean.
-- Recompute the count and the progress bar in the header, and the date footer.
-- Commit `PROGRESS.md` **with that phase's code**, never as a commit of its own.
+1. **Check the model.** Look up the phase in `.claude/phases.json` to get its
+   recommended model. If the session is not on that model, output the exact
+   command the user should run:
+   ```
+   /model opus
+   ```
+   (or `sonnet`, whatever is needed). Then output "Ready to build Phase N once you switch."
+   
+   **Enforce:** Do not silently build an Opus phase on Sonnet. But after the
+   user runs `/model`, just build — no need to wait for them to ask again or
+   repeat the request.
+   If already on the recommended model, proceed immediately to step 2.
+   
+   If not: the user runs the command, and I build automatically on the next
+   message (no need for them to repeat the request).
+
+2. **Read the phase spec** in [`BUILD_PLAN.md`](BUILD_PLAN.md) §8, plus any
+   `Docs/` file it names. The plan states each phase's deliverable — that is the
+   definition of done, not "some code exists". §1–7 hold the architecture, the
+   backend contract and the persistence model; re-read the relevant one rather
+   than re-deriving it.
+3. **Flip the phase to 🟨** in `PROGRESS.md` before writing its first line of
+   code.
+4. **Build it,** honouring the ground rules below.
+5. **Verify:** `flutter analyze` and `flutter test` clean, plus the phase's own
+   check. For anything with UI, add a shot to `test/screenshots.dart` and
+   actually look at it — there is no device on this machine.
+6. **Flip to ✅**, add a one-line note, recompute the header count, the progress
+   bar and the date footer.
+7. **Commit `PROGRESS.md` with that phase's code**, never as a commit of its
+   own. Only commit if the user has asked for commits.
+
+If a phase turns out to be blocked, mark it ⏸️ with the reason in Notes, finish
+everything in the phase that is not blocked, and say plainly what was left out.
 
 ## Ground rules
 

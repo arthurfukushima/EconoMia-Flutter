@@ -1,0 +1,110 @@
+{
+  "phases": [
+    {
+      "number": 0,
+      "name": "Skeleton",
+      "model": "sonnet",
+      "description": "Shell, theme, splash, screenshot harness"
+    },
+    {
+      "number": 1,
+      "name": "Data spine",
+      "model": "opus",
+      "description": "Models, API client, sembast, prefs — no UI",
+      "reason": "API contract sets up everything downstream; subtle details matter (cod type, money formats)"
+    },
+    {
+      "number": 2,
+      "name": "Location",
+      "model": "sonnet",
+      "description": "CEP + GPS + raio, persisted"
+    },
+    {
+      "number": 3,
+      "name": "Scan → parsed nota",
+      "model": "sonnet",
+      "description": "Camera → /api/nfce → unpriced receipt, saved"
+    },
+    {
+      "number": 4,
+      "name": "Pricing + savings",
+      "model": "opus",
+      "description": "Pooled /api/precos, the defensible savings figure",
+      "reason": "#1 risk: 'you overpaid R$17' destroys trust. Guardrails must be right."
+    },
+    {
+      "number": 5,
+      "name": "Receipt, second pass",
+      "model": "sonnet",
+      "description": "Store picker, single-store basket, categories"
+    },
+    {
+      "number": 6,
+      "name": "Minhas Notas",
+      "model": "sonnet",
+      "description": "History, re-open, re-price, clear"
+    },
+    {
+      "number": 7,
+      "name": "Home hero",
+      "model": "sonnet",
+      "description": "aggregate(), Mia's savings hero, both states"
+    },
+    {
+      "number": 8,
+      "name": "Home shortcuts",
+      "model": "sonnet",
+      "description": "Atalhos tiles with live counts, Dica da Mia"
+    },
+    {
+      "number": 9,
+      "name": "Produto",
+      "model": "sonnet",
+      "description": "Barcode → price range + nearby stores"
+    },
+    {
+      "number": 10,
+      "name": "Mercado",
+      "model": "sonnet",
+      "description": "Store picker, the four compareHere statuses"
+    },
+    {
+      "number": 11,
+      "name": "Nutrição",
+      "model": "sonnet",
+      "description": "Open Food Facts panel"
+    },
+    {
+      "number": 12,
+      "name": "Lista de Compras",
+      "model": "opus",
+      "description": "Free-text parser, 12h cache, market ranking",
+      "reason": "Failed refresh must preserve old prices AND old timestamp — easy to get wrong."
+    },
+    {
+      "number": 13,
+      "name": "Gamification",
+      "model": "opus",
+      "description": "Mia Points + Missões (needs events from 2, 3, 9, 10, 12)",
+      "reason": "Quest reducer: no retroactive credit, deterministic rotation, pay completed-but-unclaimed quests — three ways to be subtly wrong."
+    },
+    {
+      "number": 14,
+      "name": "Resumo",
+      "model": "sonnet",
+      "description": "Spending breakdown, pantry champions"
+    },
+    {
+      "number": 15,
+      "name": "Tendências",
+      "model": "sonnet",
+      "description": "Best weekday per category"
+    },
+    {
+      "number": 16,
+      "name": "Polish",
+      "model": "sonnet",
+      "description": "Motion, empty-state audit, semantics, icon + splash"
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+[
+  {
+    "_note": "RICH receipt — enriched, exercises every ReceiptView branch: compared savings (gtin high + produce approx), a matched-but-not-cheaper item (item 4, shown in NEITHER list), and two uncompared items (item 7 no nearby price, item 10 precos===null i.e. pricing failed). Feed this object straight to <ReceiptView receipt={...}>.",
+    "accessKey": "41250712345678000190650010000123451987654321",
+    "enrichedAt": 1753100000000,
+    "locationCep": "86050100",
+    "header": {
+      "cnpj": "12.345.678/0001-90",
+      "storeName": "MUFFATO SUPERCENTER",
+      "city": "Londrina",
+      "address": "AV HIGIENOPOLIS, 1200, CENTRO, Londrina, PR",
+      "purchasedAt": "19/07/2026 18:32:10",
+      "totalCents": 19468
+    },
+    "items": [
+      {
+        "description": "LEITE INTEGRAL ITALAC 1L",
+        "gtin": "7898080640017", "qty": 6, "unit": "UN",
+        "unitPriceCents": 449, "lineTotalCents": 2694,
+        "precos": { "gtin": "7898080640017", "basis": "gtin", "confidence": "high", "nStores": 14,
+          "cheapest": { "priceCents": 398, "store": "Condor", "bairro": "Gleba Palhano", "km": 2.3,
+            "addr": "AV MADRE LEONIA MILITO, 1550, Londrina, PR", "datahora": "2026-07-21T09:12:00" } }
+      },
+      {
+        "description": "CAFE PILAO TRADICIONAL 500G",
+        "gtin": "7896089012345", "qty": 2, "unit": "UN",
+        "unitPriceCents": 1590, "lineTotalCents": 3180,
+        "precos": { "gtin": "7896089012345", "basis": "gtin", "confidence": "high", "nStores": 11,
+          "cheapest": { "priceCents": 1349, "store": "Angeloni", "bairro": "Centro", "km": 4.1,
+            "addr": "AV JOAO WYCLIF, 111, Londrina, PR", "datahora": "2026-07-19T14:03:00" } }
+      },
+      {
+        "description": "ARROZ TIO JOAO TIPO1 5KG",
+        "gtin": "7893500007289", "qty": 1, "unit": "UN",
+        "unitPriceCents": 2890, "lineTotalCents": 2890,
+        "precos": { "gtin": "7893500007289", "basis": "gtin", "confidence": "high", "nStores": 9,
+          "cheapest": { "priceCents": 2490, "store": "Super Muffato", "bairro": "Igapo", "km": 3.0,
+            "addr": "AV SAUL ELKIND, 790, Londrina, PR", "datahora": "2026-07-16T17:40:00" } }
+      },
+      {
+        "description": "FEIJAO CARIOCA KICALDO 1KG",
+        "gtin": "7896006711234", "qty": 2, "unit": "UN",
+        "unitPriceCents": 849, "lineTotalCents": 1698,
+        "precos": { "gtin": "7896006711234", "basis": "gtin", "confidence": "high", "nStores": 7,
+          "cheapest": { "priceCents": 879, "store": "Cidade Cancao", "bairro": "Vila Nova", "km": 2.7,
+            "addr": "RUA SERGIPE, 500, Londrina, PR", "datahora": "2026-07-18T11:20:00" } }
+      },
+      {
+        "description": "BANANA NANICA",
+        "gtin": null, "qty": 1.235, "unit": "KG",
+        "unitPriceCents": 499, "lineTotalCents": 616,
+        "precos": { "gtin": null, "basis": "desc", "confidence": "approx", "nStores": 6,
+          "cheapest": { "priceCents": 349, "store": "Hortifruti Central", "bairro": "Aurora", "km": 1.8,
+            "addr": "RUA PARANA, 300, Londrina, PR", "datahora": "2026-07-21T07:55:00" } }
+      },
+      {
+        "description": "TOMATE LONGA VIDA",
+        "gtin": null, "qty": 0.845, "unit": "KG",
+        "unitPriceCents": 799, "lineTotalCents": 675,
+        "precos": { "gtin": null, "basis": "desc", "confidence": "approx", "nStores": 5,
+          "cheapest": { "priceCents": 599, "store": "Feira Vila Nova", "bairro": "Vila Nova", "km": 2.1,
+            "addr": "PRACA GABRIEL MARTINS, Londrina, PR", "datahora": "2026-07-20T08:30:00" } }
+      },
+      {
+        "description": "PAO FRANCES",
+        "gtin": null, "qty": 0.42, "unit": "KG",
+        "unitPriceCents": 1290, "lineTotalCents": 542,
+        "precos": { "gtin": null, "basis": "desc", "confidence": "approx", "nStores": 0, "cheapest": null }
+      },
+      {
+        "description": "SABAO EM PO OMO 1.6KG",
+        "gtin": "7891150056789", "qty": 1, "unit": "UN",
+        "unitPriceCents": 2290, "lineTotalCents": 2290,
+        "precos": { "gtin": "7891150056789", "basis": "gtin", "confidence": "high", "nStores": 12,
+          "cheapest": { "priceCents": 1990, "store": "Festval", "bairro": "Gleba Palhano", "km": 5.0,
+            "addr": "AV ADHEMAR PEREIRA DE BARROS, 900, Londrina, PR", "datahora": "2026-07-15T16:10:00" } }
+      },
+      {
+        "description": "REFRIGERANTE COCA-COLA 2L",
+        "gtin": "7894900011517", "qty": 3, "unit": "UN",
+        "unitPriceCents": 899, "lineTotalCents": 2697,
+        "precos": { "gtin": "7894900011517", "basis": "gtin", "confidence": "high", "nStores": 15,
+          "cheapest": { "priceCents": 749, "store": "Super Tozetto", "bairro": "Igapo", "km": 3.5,
+            "addr": "AV SAUL ELKIND, 2000, Londrina, PR", "datahora": "2026-07-20T19:22:00" } }
+      },
+      {
+        "description": "DETERGENTE YPE NEUTRO 500ML",
+        "gtin": "7896098900123", "qty": 4, "unit": "UN",
+        "unitPriceCents": 249, "lineTotalCents": 996,
+        "precos": null
+      },
+      {
+        "description": "OVOS BRANCOS GRANDES DUZIA",
+        "gtin": "7898900010047", "qty": 1, "unit": "UN",
+        "unitPriceCents": 1190, "lineTotalCents": 1190,
+        "precos": { "gtin": "7898900010047", "basis": "gtin", "confidence": "high", "nStores": 8,
+          "cheapest": { "priceCents": 990, "store": "Viscardi", "bairro": "Centro", "km": 2.8,
+            "addr": "RUA MINAS GERAIS, 250, Londrina, PR", "datahora": "2026-07-17T10:05:00" } }
+      }
+    ]
+  },
+  {
+    "_note": "ZERO-SAVINGS receipt — enriched but nothing is cheaper nearby: item 1 matched-but-equal (not >0), items 2 and 3 uncompared. computeSavings -> totalSavedCents 0, compared []. Use this for the 'no savings found' state and as a second History row.",
+    "accessKey": "41250799887766000155650010000998877000112233",
+    "enrichedAt": 1753186400000,
+    "locationCep": "86050100",
+    "header": {
+      "cnpj": "99.887.766/0001-55",
+      "storeName": "PANIFICADORA PAO QUENTE",
+      "city": "Londrina",
+      "address": "RUA BELO HORIZONTE, 88, CENTRO, Londrina, PR",
+      "purchasedAt": "20/07/2026 08:15:00",
+      "totalCents": 2341
+    },
+    "items": [
+      {
+        "description": "AGUA MINERAL SEM GAS 1.5L",
+        "gtin": "7898080641020", "qty": 6, "unit": "UN",
+        "unitPriceCents": 199, "lineTotalCents": 1194,
+        "precos": { "gtin": "7898080641020", "basis": "gtin", "confidence": "high", "nStores": 10,
+          "cheapest": { "priceCents": 199, "store": "Condor", "bairro": "Centro", "km": 3.9,
+            "addr": "AV MADRE LEONIA MILITO, 1550, Londrina, PR", "datahora": "2026-07-18T13:00:00" } }
+      },
+      {
+        "description": "CHICLETE TRIDENT MENTA",
+        "gtin": "7622300861234", "qty": 1, "unit": "UN",
+        "unitPriceCents": 250, "lineTotalCents": 250,
+        "precos": null
+      },
+      {
+        "description": "PAO DE QUEIJO",
+        "gtin": null, "qty": 0.3, "unit": "KG",
+        "unitPriceCents": 2990, "lineTotalCents": 897,
+        "precos": { "gtin": null, "basis": "desc", "confidence": "approx", "nStores": 0, "cheapest": null }
+      }
+    ]
+  }
+]

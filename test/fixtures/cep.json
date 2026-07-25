@@ -1,0 +1,8 @@
+{
+  "_note": "Recorded from GET https://econo-mia.vercel.app/api/cep?cep=86010000 on 2026-07-25.",
+  "cep": "86010000",
+  "lat": -23.3154391,
+  "lng": -51.1613373,
+  "city": "Londrina",
+  "state": "Paraná"
+}

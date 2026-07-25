@@ -1,0 +1,52 @@
+{
+  "_note": "Recorded from GET /api/precos?q=arroz 5kg&local=-23.31,-51.16&raio=50&unit=UN on 2026-07-25. stores[] truncated to 3. Description path: gtin null, basis desc, confidence approx.",
+  "gtin": null,
+  "basis": "desc",
+  "confidence": "approx",
+  "cheapest": {
+    "priceCents": 1350,
+    "store": "TEURA DE DOCES",
+    "bairro": "ADLIDOS",
+    "addr": "RUA PAOLO POQPOPA 1414, ADLIDOS, CAMPO PAGRY - ES",
+    "km": 3.13,
+    "datahora": "2026-07-25T00:01:05.669Z"
+  },
+  "stores": [
+    {
+      "priceCents": 6078,
+      "store": "JASEIM DODAS LTDA",
+      "bairro": "SANTDA ANMONPO",
+      "addr": "RUA DONA FRANCASCA 289, SANTDA ANMONPO, SEWRA - ES",
+      "cod": "j37bod3ac7g975ymrsgylnah91uxwgxf82bowzq0ichollgxg3lvhhnz19k2scjpmjvnseyunwwfapuxd3nfen",
+      "km": 1.16,
+      "datahora": "2026-07-25T05:55:02.669Z"
+    },
+    {
+      "priceCents": 7074,
+      "store": "HWDPER SOBORK",
+      "bairro": "MARUIQE",
+      "addr": "RUA DOUTOR AMERICANO 896, MARUIQE, CARUINR - PE",
+      "cod": "c2g8bhwdw275zcf1utx5k2nqn4tj7irckq3vypfes8th2nzt496jgg2r82cvtbe9lj9ivpvoswdih2tnluroulcd",
+      "km": 1.16,
+      "datahora": "2026-07-25T02:53:10.669Z"
+    },
+    {
+      "priceCents": 4101,
+      "store": "PVERFEITPO SAQOR LTDA",
+      "bairro": "JUBUTUQUARA",
+      "addr": "RUA VISHONDE DE TAONAY 200, JUBUTUQUARA, LISNHRJS - PR",
+      "cod": "r7qmd6bazeqk7z8roluj6hkki2ttrga9evkkd115m9pb8rgwm09mfw78oh2luep3632sgeskjvyg8684krqq7",
+      "km": 1.4,
+      "datahora": "2026-07-25T03:40:06.669Z"
+    }
+  ],
+  "range": {
+    "minCents": 1350,
+    "maxCents": 8114
+  },
+  "nOffers": 41,
+  "nStores": 41,
+  "name": "ARROZ 5KG",
+  "ncm": "320035035",
+  "options": []
+}

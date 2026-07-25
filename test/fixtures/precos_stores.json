@@ -1,0 +1,52 @@
+{
+  "_note": "Recorded from GET /api/precos?q=arroz&mode=stores&local=-23.31,-51.16&raio=50 on 2026-07-25. stores[] truncated to 3. The deployed function answered with the full analyze shape rather than a bare {stores}; searchStores reads `stores` out of either, which is what this fixture pins.",
+  "gtin": null,
+  "basis": "desc",
+  "confidence": "approx",
+  "cheapest": {
+    "priceCents": 728,
+    "store": "TAVEZA DO AJEMUO",
+    "bairro": "ADEGAS",
+    "addr": "RUA DOMINIQUS LAGVU 1246, ADEGAS, TIHUCAS DO SULE - PR",
+    "km": 2.67,
+    "datahora": "2026-07-25T03:00:12.669Z"
+  },
+  "stores": [
+    {
+      "priceCents": 3762,
+      "store": "FRPENDS",
+      "bairro": "ATOGAAOS",
+      "addr": "RUA JOSE BRANAOB 1202, ATOGAAOS, LIJNWRMS - PR",
+      "cod": "4jsbr2d906nzxcmh19rgbbfiv8llcx4p5mgxu78sjl4q1wo60d8cp92ki3ehh7pw3fm56h5bx5ldrvw5m52ta",
+      "km": 1.14,
+      "datahora": "2026-07-25T02:50:08.669Z"
+    },
+    {
+      "priceCents": 4988,
+      "store": "FRPENDS",
+      "bairro": "AUUA FRIA",
+      "addr": "RUA CARLJS BENACKQ 472, AUUA FRIA, CAUIAEIMA - ES",
+      "cod": "jq7j7jvc787x8ocex7hw3fv577q6iv44a2f8kqzsby45mqaz49pivi5iqkr6r35yjnkwwt2ljhi8gejlzdodbob",
+      "km": 1.23,
+      "datahora": "2026-07-25T01:03:24.669Z"
+    },
+    {
+      "priceCents": 1956,
+      "store": "RCEI DOY MIZRO LXTDAO",
+      "bairro": "CENTRO",
+      "addr": "RUA VENCESLAU JOSE BESNARDES 1198, CENTRO, CAPOEIPO DE IBAPEIIRIM - PR",
+      "cod": "ldpj6coirtla00bgbeaszncf3aa7m4v42r0d38zek34jyh6i2t1xuyf7zey298s8e22o000qz67djv688utli",
+      "km": 1.26,
+      "datahora": "2026-07-25T00:16:07.669Z"
+    }
+  ],
+  "range": {
+    "minCents": 728,
+    "maxCents": 4988
+  },
+  "nOffers": 16,
+  "nStores": 16,
+  "name": "ARROZ",
+  "ncm": "320091368",
+  "options": []
+}
