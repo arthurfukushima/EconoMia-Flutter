@@ -1,6 +1,6 @@
 # EconoMia — Build Progress
 
-**3 / 17 phases**  ▓▓▓░░░░░░░░░░░░░░  18%
+**5 / 17 phases**  ▓▓▓▓▓░░░░░░░░░░░░  29%
 
 Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 
@@ -19,8 +19,8 @@ Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 | # | Phase | Status | Model | Notes |
 |---|-------|--------|-------|-------|
 | 2 | Location | ✅ done | Sonnet | `LocationBar` (unset form + set summary), CEP/GPS via `/api/cep`, raio picker, persists across restarts |
-| 3 | Scan → parsed nota | ⬜ todo | Sonnet | Camera → `/api/nfce` → unpriced receipt, saved |
-| 4 | Pricing + savings | ⬜ todo | **Opus** | Pooled `/api/precos`, the defensible savings figure |
+| 3 | Scan → parsed nota | ✅ done | Sonnet | `mobile_scanner` (QR for nota, EAN for produto) + manual-paste fallback; content-based routing so a mis-scanned barcode still lands on Produto |
+| 4 | Pricing + savings | ✅ done | **Opus** | Pooled `/api/precos` (6), `computeSavings` + the paid-price outlier guard, cheapest-nearby report; R$ 24,92 on the sample nota |
 | 5 | Receipt, second pass | ⬜ todo | Sonnet | Store picker, single-store basket, categories |
 | 6 | Minhas Notas | ⬜ todo | Sonnet | History, re-open, re-price, clear |
 
@@ -104,6 +104,6 @@ mid-session — no new session needed.
 _Updated 2026-07-25 · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
 
 <!-- Phase 1 left for later, deliberately: models for Lista, Missões and
-     Nutrição (phases 11–13 define their own shape), enrichReceipt/priceItems
-     orchestration (phases 4 and 12), and `intl` (no date is formatted yet). -->
+     Nutrição (phases 11–13 define their own shape), `priceItems` orchestration
+     (phase 12), and `intl` (no date is formatted yet). -->
 

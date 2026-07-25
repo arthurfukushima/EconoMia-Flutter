@@ -16,9 +16,11 @@ dependencies:
   go_router: ^17.3.0
   http: ^1.6.0
   json_annotation: ^4.12.0
+  mobile_scanner: ^7.4.0
   path_provider: ^2.1.6
   sembast: ^3.8.9+1
   shared_preferences: ^2.5.5
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'features/receipt/receipt_screen.dart';
+import 'features/scan/scan_mode.dart';
+import 'features/scan/scan_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'widgets/app_shell.dart';
 import 'widgets/phase_placeholder.dart';
@@ -43,11 +46,8 @@ final router = GoRouter(
                     GoRoute(
                       path: ':accessKey',
                       parentNavigatorKey: _rootKey,
-                      builder: (_, _) => const PhasePlaceholder(
-                        title: 'Nota',
-                        phase: 3,
-                        summary: 'Os itens da nota e onde cada um sai mais barato por perto.',
-                      ),
+                      builder: (_, state) =>
+                          ReceiptScreen(accessKey: state.pathParameters['accessKey']!),
                     ),
                   ],
                 ),
@@ -106,12 +106,8 @@ final router = GoRouter(
     GoRoute(
       path: '/scan',
       parentNavigatorKey: _rootKey,
-      builder: (_, state) => PhasePlaceholder(
-        title: 'Escanear',
-        phase: state.uri.queryParameters['mode'] == 'produto' ? 9 : 3,
-        summary: state.uri.queryParameters['mode'] == 'produto'
-            ? 'Aponte para o código de barras do produto.'
-            : 'Aponte para o QR da nota fiscal.',
+      builder: (_, state) => ScanScreen(
+        mode: state.uri.queryParameters['mode'] == 'produto' ? ScanMode.produto : ScanMode.nota,
       ),
     ),
     GoRoute(
