@@ -1,0 +1,38 @@
+name: economia
+description: "EconoMia — escaneie sua nota fiscal e descubra onde economizar."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^3.3.2
+  go_router: ^17.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/img/
+
+  # Google Fonts ships these three only as variable fonts, so each family is one
+  # file and weight is selected via FontVariation('wght', n) — see theme/fonts.dart.
+  fonts:
+    - family: Fredoka
+      fonts:
+        - asset: assets/fonts/Fredoka.ttf
+    - family: Baloo2
+      fonts:
+        - asset: assets/fonts/Baloo2.ttf
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito.ttf
