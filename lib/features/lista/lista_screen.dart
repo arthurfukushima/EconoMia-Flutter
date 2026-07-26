@@ -5,6 +5,7 @@ import '../../core/money.dart';
 import '../../data/economia_api.dart';
 import '../../data/models/list_item.dart';
 import '../../data/models/precos.dart';
+import '../../data/models/shopping_list.dart';
 import '../../data/prefs.dart';
 import '../../domain/lista.dart';
 import '../../domain/stores.dart';
@@ -50,7 +51,7 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
   void initState() {
     super.initState();
     _input.addListener(() => setState(() {}));
-    _selCod = ref.read(prefsProvider).listStore;
+    _selCod = ref.read(prefsProvider).listStoreOf(ref.read(activeListIdProvider));
     // After the first frame: the list is worth reading before the network is
     // touched, exactly as on the receipt screen.
     WidgetsBinding.instance.addPostFrameCallback(
@@ -66,8 +67,95 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
 
   void _selectStore(String? cod) {
     setState(() => _selCod = cod);
-    ref.read(prefsProvider).setListStore(cod);
+    ref.read(prefsProvider).setListStoreOf(ref.read(activeListIdProvider), cod);
   }
+
+  /// Switching lists brings its own items, its own store pick and its own
+  /// name-searched markets — none of the current list's state carries over.
+  void _switchList(String id) {
+    ref.read(activeListIdProvider.notifier).set(id);
+    setState(() {
+      _selCod = ref.read(prefsProvider).listStoreOf(id);
+      _extra = const [];
+      _showMarkets = false;
+    });
+    ref.read(listaControllerProvider.notifier).priceStale();
+  }
+
+  Future<void> _openListMenu() async {
+    final lists = ref.read(listsProvider);
+    final activeId = ref.read(activeListIdProvider);
+    final action = await showModalBottomSheet<_ListAction>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ListMenu(lists: lists, activeId: activeId),
+    );
+    if (action == null || !mounted) return;
+
+    switch (action) {
+      case _Switch(:final id):
+        _switchList(id);
+      case _Create():
+        final name = await _promptName(title: 'Nova lista', initial: '');
+        if (name == null || !mounted) return;
+        final created = await ref.read(listsProvider.notifier).create(name);
+        if (!mounted) return;
+        _switchList(created.id);
+      case _Rename(:final id, :final currentName):
+        final name = await _promptName(title: 'Renomear lista', initial: currentName);
+        if (name == null) return;
+        await ref.read(listsProvider.notifier).rename(id, name);
+      case _Delete(:final id, :final currentName):
+        final ok = await _confirmDelete(currentName);
+        if (ok != true) return;
+        await ref.read(listsProvider.notifier).delete(id);
+        if (!mounted) return;
+        // delete() moves the active id itself (it may have been the active
+        // list, or the last one) — resync this screen to wherever it landed.
+        _switchList(ref.read(activeListIdProvider));
+    }
+  }
+
+  Future<String?> _promptName({required String title, required String initial}) {
+    final controller = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Ex: Churrasco, Casa, Mês'),
+          onSubmitted: (v) => Navigator.pop(context, v.trim().isEmpty ? null : v.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              final v = controller.text.trim();
+              Navigator.pop(context, v.isEmpty ? null : v);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    ).whenComplete(controller.dispose);
+  }
+
+  Future<bool?> _confirmDelete(String name) => showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Apagar "$name"?'),
+          content: const Text('Os itens desta lista e os preços já buscados serão perdidos.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Apagar'),
+            ),
+          ],
+        ),
+      );
 
   Future<void> _add() async {
     final text = _input.text;
@@ -129,9 +217,18 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     final basket = effectiveCod == null ? null : basketAt(items, effectiveCod);
     final ranking = marketRanking(items);
 
+    final lists = ref.watch(listsProvider);
+    final activeId = ref.watch(activeListIdProvider);
+    var activeName = 'Minha Lista';
+    for (final l in lists) {
+      if (l.id == activeId) activeName = l.name;
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       children: [
+        _ListHeader(name: activeName, count: lists.length, onTap: _openListMenu),
+        const SizedBox(height: 10),
         _AddForm(controller: _input, onSubmit: _input.text.trim().isEmpty ? null : _add),
         if (location == null) ...[
           const SizedBox(height: 12),
@@ -156,8 +253,11 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
         else ...[
           Row(
             children: [
+              // Not "Minha lista" any more — the header above names the
+              // active list, and repeating a wrong name here would be worse
+              // than saying nothing.
               Expanded(
-                child: Text('Minha lista (${items.length})', style: theme.textTheme.titleMedium),
+                child: Text('Itens (${items.length})', style: theme.textTheme.titleMedium),
               ),
               if (location != null)
                 TextButton(
@@ -240,10 +340,16 @@ class _AddForm extends StatelessWidget {
         Expanded(
           child: TextField(
             controller: controller,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => onSubmit?.call(),
+            // A single-line field (maxLines: 1) discards every newline in
+            // its value, typed or pasted — so pasting a multi-line list out
+            // of Notes/WhatsApp would silently collapse into one run-on
+            // item. Unbounded so those newlines survive into `_add()`,
+            // which already splits on them (`parseInput`); submission stays
+            // on the button, not Enter, since Enter now means "new line".
+            maxLines: null,
+            keyboardType: TextInputType.multiline,
             decoration: const InputDecoration(
-              hintText: 'Ex: 4x Tomates, 1.5kg Carne, Toddy…',
+              hintText: 'Ex: 4x Tomates, 1.5kg Carne, Toddy… (ou cole uma lista)',
               isDense: true,
             ),
           ),
@@ -390,12 +496,32 @@ class _ItemRow extends ConsumerWidget {
           _Collapse(
             title: 'trocar produto (${options.length} opções)',
             children: [
+              // Tier 1 (the literal product typed) and tier 2 (formulation/
+              // packaging variants — Zero, Retornável, ...) as two groups, not
+              // one flat list — a variant must stay reachable without ever
+              // competing visually with the literal match. The backend
+              // already sorts tier 1 before tier 2, so this only draws the
+              // split; it doesn't re-order anything.
               for (final o in options)
-                _OptionTile(
-                  option: o,
-                  selected: o.key == active?.key,
-                  onTap: () => controller.choose(item.id, o.key),
+                if (o.tier != 2)
+                  _OptionTile(
+                    option: o,
+                    selected: o.key == active?.key,
+                    onTap: () => controller.choose(item.id, o.key),
+                  ),
+              if (options.any((o) => o.tier == 2)) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text('variações', style: Theme.of(context).textTheme.labelMedium!.copyWith(color: Theme.of(context).sa.muted)),
                 ),
+                for (final o in options)
+                  if (o.tier == 2)
+                    _OptionTile(
+                      option: o,
+                      selected: o.key == active?.key,
+                      onTap: () => controller.choose(item.id, o.key),
+                    ),
+              ],
             ],
           ),
         if ((active?.stores.length ?? 0) > 1)
@@ -405,7 +531,7 @@ class _ItemRow extends ConsumerWidget {
               for (final s in active.stores)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: OfferSpan(offer: s),
+                  child: StoreRow(offer: s),
                 ),
             ],
           ),
@@ -686,6 +812,154 @@ class _Collapse extends StatelessWidget {
           for (final child in children)
             Align(alignment: Alignment.centerLeft, child: child),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Multiple lists
+// ---------------------------------------------------------------------------
+
+/// What the list menu resolved to. A sealed family rather than a callback per
+/// row so the sheet stays a pure chooser — every action is performed by the
+/// screen, which is the thing that can await a dialog and resync itself.
+sealed class _ListAction {
+  const _ListAction();
+}
+
+class _Switch extends _ListAction {
+  const _Switch(this.id);
+  final String id;
+}
+
+class _Create extends _ListAction {
+  const _Create();
+}
+
+class _Rename extends _ListAction {
+  const _Rename(this.id, this.currentName);
+  final String id;
+  final String currentName;
+}
+
+class _Delete extends _ListAction {
+  const _Delete(this.id, this.currentName);
+  final String id;
+  final String currentName;
+}
+
+/// The active list's name, and the way into the list menu.
+class _ListHeader extends StatelessWidget {
+  const _ListHeader({required this.name, required this.count, required this.onTap});
+
+  final String name;
+
+  /// How many lists exist. One is the ordinary case, so the "de N" suffix only
+  /// appears once there is genuinely a choice to make.
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+
+    return Material(
+      color: sa.paper2,
+      borderRadius: SaRadius.smAll,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: SaRadius.smAll,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              const Text('📋 ', style: TextStyle(fontSize: 15)),
+              Expanded(
+                child: Text(name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+              ),
+              if (count > 1)
+                Text('1 de $count  ', style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+              Icon(Icons.expand_more_rounded, color: sa.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Switch to another list, or create/rename/delete one.
+class _ListMenu extends StatelessWidget {
+  const _ListMenu({required this.lists, required this.activeId});
+
+  final List<ShoppingList> lists;
+  final String activeId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Suas listas', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final l in lists)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Text(
+                        l.id == activeId ? '📋' : '📄',
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                      title: Text(l.name, style: theme.textTheme.bodyMedium),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (l.id == activeId)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Icon(Icons.check_rounded, size: 18, color: sa.green),
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.edit_rounded, size: 18),
+                            tooltip: 'renomear ${l.name}',
+                            color: sa.muted,
+                            onPressed: () => Navigator.pop(context, _Rename(l.id, l.name)),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                            tooltip: 'apagar ${l.name}',
+                            color: sa.muted,
+                            onPressed: () => Navigator.pop(context, _Delete(l.id, l.name)),
+                          ),
+                        ],
+                      ),
+                      onTap: () => Navigator.pop(context, _Switch(l.id)),
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Text('✨', style: TextStyle(fontSize: 18)),
+              title: Text('Nova lista', style: theme.textTheme.bodyMedium),
+              onTap: () => Navigator.pop(context, const _Create()),
+            ),
+          ],
+        ),
       ),
     );
   }

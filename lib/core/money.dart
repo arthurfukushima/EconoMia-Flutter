@@ -54,3 +54,11 @@ String formatBRL(int cents) {
   final centavos = (abs % 100).toString().padLeft(2, '0');
   return '${sign}R\$ $reais,$centavos';
 }
+
+/// A local price spread as "R$X" (min == max) or "R$X – R$Y" — the shape
+/// Produto, Mercado and "buscar por nome" all show for a product's region
+/// range. `null` (no offers at all) reads as "—".
+String formatRangeBRL(int? minCents, int? maxCents) {
+  if (minCents == null || maxCents == null) return '—';
+  return minCents == maxCents ? formatBRL(minCents) : '${formatBRL(minCents)} – ${formatBRL(maxCents)}';
+}

@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/app_config.dart';
 import 'models/nutrition.dart';
 
 final offApiProvider = Provider<OffApi>((ref) {
-  final api = OffApi();
+  final api = OffApi(config: ref.watch(appConfigProvider).openFoodFacts);
   ref.onDispose(api.close);
   return api;
 });
@@ -37,11 +38,13 @@ const _nutrientFields = [
 /// against because the mapping below isn't a passthrough — it also handles
 /// the `_pt` field fallback and reshapes `nutriments` into [NutrientValue]s.
 class OffApi {
-  OffApi({http.Client? client}) : _client = client ?? http.Client();
+  OffApi({http.Client? client, OpenFoodFactsConfig? config})
+      : _client = client ?? http.Client(),
+        _config = config ?? AppConfig.fallback.openFoodFacts;
 
   final http.Client _client;
+  final OpenFoodFactsConfig _config;
 
-  static const _base = 'https://world.openfoodfacts.org/api/v2/product';
   static const _fields = 'product_name,product_name_pt,brands,quantity,ingredients_text,'
       'ingredients_text_pt,nutriments,nutriscore_grade,nova_group';
 
@@ -49,8 +52,9 @@ class OffApi {
   /// all mean the same thing to the caller — no nutrition info to show.
   Future<Nutrition?> lookup(String gtin) async {
     try {
-      final uri = Uri.parse('$_base/$gtin.json').replace(queryParameters: {'fields': _fields});
-      final res = await _client.get(uri).timeout(const Duration(seconds: 15));
+      final uri = Uri.parse('${_config.baseUrl}/$gtin.json')
+          .replace(queryParameters: {'fields': _fields});
+      final res = await _client.get(uri).timeout(_config.timeout);
       if (res.statusCode != 200) return null;
 
       final json = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;

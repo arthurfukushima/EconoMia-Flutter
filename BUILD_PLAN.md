@@ -6,7 +6,7 @@ EconoMia is a Brazilian (Paraná) grocery-savings app: scan the QR on an NFC-e c
 
 This plan rebuilds the **client** as a production Flutter app. The React code is reference only — nothing is ported. The `api/*` functions stay deployed and are consumed over HTTP by a new typed Dart client. Nothing about NFC-e parsing or price scraping is re-implemented in Dart.
 
-**Confirmed scope:** Android + iOS only (Android 8 / iOS 13) · full feature parity, phased · pt-BR strings inline, no ARB · **light theme only** for this build · base URL `https://econo-mia.vercel.app`.
+**Confirmed scope:** Android + iOS only (Android 8 / iOS 13) · full feature parity, phased · pt-BR strings inline, no ARB · **light theme only** for this build · base URL from `assets/config/app_config.json`.
 
 ---
 
@@ -167,7 +167,9 @@ Errors are uniformly `{error: "<snake_case>"}` (+ optional `detail`/`status`) �
 6. **Two money formats:** SEFAZ gives `"R$ 1.234,56"` (`parseBRL`), Menor Preço gives `"3.19"` (`reaisToCents`). Never cross them. Everything downstream is integer cents.
 7. Send `User-Agent: Mozilla/5.0 (EconoMia)` where the MVP does.
 
-**Base URL:** `https://econo-mia.vercel.app` (confirmed). There is no `vercel.json` and no hardcoded URL in the MVP — every call there is a same-origin relative path — so the constant lives in `core/api_client.dart`. Native HTTP has no CORS, so the functions carrying no CORS headers is a non-issue on Android/iOS.
+**Base URL:** configuration, not a constant — `api.baseUrl` in `assets/config/app_config.json` (default `https://econo-mia-hugo.vercel.app`), overridable per machine via the gitignored `app_config.local.json`. Every dev deploys their own Vercel project, so this genuinely differs per person; see `core/app_config.dart`. The MVP needed no such setting because every call there is a same-origin relative path.
+
+**CORS:** a non-issue on Android/iOS (native HTTP doesn't enforce it), but the web build is a different origin than the functions, so they carry `Access-Control-Allow-Origin` + an `OPTIONS` early-return (`api/lib/cors.js` in the backend repo). The device-side Menor Preço fetch stays a CORS "simple request" — no custom headers — so it needs no preflight from a host that would never answer one.
 
 ---
 
@@ -220,7 +222,7 @@ Statuses are `⬜ todo` · `🟨 in progress` · `✅ done` · `⏸️ blocked` 
 **Phase 0 — Skeleton.** `flutter create` (android, ios), pubspec, bundled fonts, `tokens.dart` + `theme.dart`, go_router shell with 4 branches + FAB + ScanChooser sheet, placeholder screens, `Splash`, **`PROGRESS.md` + `CLAUDE.md`**.
 → *A navigable app that already looks like Sage & Amber, and a status file that tracks the other fifteen phases.*
 
-**Phase 1 — Data spine.** Models (freezed), `EconomiaApi` against `https://econo-mia.vercel.app`, `pooled.dart`, `money.dart` / `text.dart` / `categoria.dart`, sembast repository, prefs. No UI.
+**Phase 1 — Data spine.** Models (freezed), `EconomiaApi` against the configured base URL, `pooled.dart`, `money.dart` / `text.dart` / `categoria.dart`, sembast repository, prefs. No UI.
 → *`flutter test` proves every model round-trips the recorded API shapes.*
 
 ### The core loop — the MVP thesis, split into five

@@ -574,7 +574,11 @@ as int,
 /// @nodoc
 mixin _$ProductOption {
 
- String get key; String? get gtin; String? get name; Offer? get cheapest; List<Offer> get stores; int get nStores; int get nOffers; String? get ncm;
+ String get key; String? get gtin; String? get name; Offer? get cheapest; List<Offer> get stores; int get nStores; int get nOffers; String? get ncm;/// `1` (the literal product asked for) | `2` (a formulation/packaging
+/// variant the query didn't name — Zero, Retornável, …). The backend
+/// already sorts tier 1 before tier 2, so this is only needed to draw the
+/// "variações" split, not to re-sort.
+ int get tier;
 /// Create a copy of ProductOption
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -587,16 +591,16 @@ $ProductOptionCopyWith<ProductOption> get copyWith => _$ProductOptionCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProductOption&&(identical(other.key, key) || other.key == key)&&(identical(other.gtin, gtin) || other.gtin == gtin)&&(identical(other.name, name) || other.name == name)&&(identical(other.cheapest, cheapest) || other.cheapest == cheapest)&&const DeepCollectionEquality().equals(other.stores, stores)&&(identical(other.nStores, nStores) || other.nStores == nStores)&&(identical(other.nOffers, nOffers) || other.nOffers == nOffers)&&(identical(other.ncm, ncm) || other.ncm == ncm));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ProductOption&&(identical(other.key, key) || other.key == key)&&(identical(other.gtin, gtin) || other.gtin == gtin)&&(identical(other.name, name) || other.name == name)&&(identical(other.cheapest, cheapest) || other.cheapest == cheapest)&&const DeepCollectionEquality().equals(other.stores, stores)&&(identical(other.nStores, nStores) || other.nStores == nStores)&&(identical(other.nOffers, nOffers) || other.nOffers == nOffers)&&(identical(other.ncm, ncm) || other.ncm == ncm)&&(identical(other.tier, tier) || other.tier == tier));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,key,gtin,name,cheapest,const DeepCollectionEquality().hash(stores),nStores,nOffers,ncm);
+int get hashCode => Object.hash(runtimeType,key,gtin,name,cheapest,const DeepCollectionEquality().hash(stores),nStores,nOffers,ncm,tier);
 
 @override
 String toString() {
-  return 'ProductOption(key: $key, gtin: $gtin, name: $name, cheapest: $cheapest, stores: $stores, nStores: $nStores, nOffers: $nOffers, ncm: $ncm)';
+  return 'ProductOption(key: $key, gtin: $gtin, name: $name, cheapest: $cheapest, stores: $stores, nStores: $nStores, nOffers: $nOffers, ncm: $ncm, tier: $tier)';
 }
 
 
@@ -607,7 +611,7 @@ abstract mixin class $ProductOptionCopyWith<$Res>  {
   factory $ProductOptionCopyWith(ProductOption value, $Res Function(ProductOption) _then) = _$ProductOptionCopyWithImpl;
 @useResult
 $Res call({
- String key, String? gtin, String? name, Offer? cheapest, List<Offer> stores, int nStores, int nOffers, String? ncm
+ String key, String? gtin, String? name, Offer? cheapest, List<Offer> stores, int nStores, int nOffers, String? ncm, int tier
 });
 
 
@@ -624,7 +628,7 @@ class _$ProductOptionCopyWithImpl<$Res>
 
 /// Create a copy of ProductOption
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? key = null,Object? gtin = freezed,Object? name = freezed,Object? cheapest = freezed,Object? stores = null,Object? nStores = null,Object? nOffers = null,Object? ncm = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? key = null,Object? gtin = freezed,Object? name = freezed,Object? cheapest = freezed,Object? stores = null,Object? nStores = null,Object? nOffers = null,Object? ncm = freezed,Object? tier = null,}) {
   return _then(_self.copyWith(
 key: null == key ? _self.key : key // ignore: cast_nullable_to_non_nullable
 as String,gtin: freezed == gtin ? _self.gtin : gtin // ignore: cast_nullable_to_non_nullable
@@ -634,7 +638,8 @@ as Offer?,stores: null == stores ? _self.stores : stores // ignore: cast_nullabl
 as List<Offer>,nStores: null == nStores ? _self.nStores : nStores // ignore: cast_nullable_to_non_nullable
 as int,nOffers: null == nOffers ? _self.nOffers : nOffers // ignore: cast_nullable_to_non_nullable
 as int,ncm: freezed == ncm ? _self.ncm : ncm // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,tier: null == tier ? _self.tier : tier // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 /// Create a copy of ProductOption
@@ -731,10 +736,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String key,  String? gtin,  String? name,  Offer? cheapest,  List<Offer> stores,  int nStores,  int nOffers,  String? ncm)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String key,  String? gtin,  String? name,  Offer? cheapest,  List<Offer> stores,  int nStores,  int nOffers,  String? ncm,  int tier)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProductOption() when $default != null:
-return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_that.nStores,_that.nOffers,_that.ncm);case _:
+return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_that.nStores,_that.nOffers,_that.ncm,_that.tier);case _:
   return orElse();
 
 }
@@ -752,10 +757,10 @@ return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String key,  String? gtin,  String? name,  Offer? cheapest,  List<Offer> stores,  int nStores,  int nOffers,  String? ncm)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String key,  String? gtin,  String? name,  Offer? cheapest,  List<Offer> stores,  int nStores,  int nOffers,  String? ncm,  int tier)  $default,) {final _that = this;
 switch (_that) {
 case _ProductOption():
-return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_that.nStores,_that.nOffers,_that.ncm);case _:
+return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_that.nStores,_that.nOffers,_that.ncm,_that.tier);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -772,10 +777,10 @@ return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_tha
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String key,  String? gtin,  String? name,  Offer? cheapest,  List<Offer> stores,  int nStores,  int nOffers,  String? ncm)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String key,  String? gtin,  String? name,  Offer? cheapest,  List<Offer> stores,  int nStores,  int nOffers,  String? ncm,  int tier)?  $default,) {final _that = this;
 switch (_that) {
 case _ProductOption() when $default != null:
-return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_that.nStores,_that.nOffers,_that.ncm);case _:
+return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_that.nStores,_that.nOffers,_that.ncm,_that.tier);case _:
   return null;
 
 }
@@ -787,7 +792,7 @@ return $default(_that.key,_that.gtin,_that.name,_that.cheapest,_that.stores,_tha
 @JsonSerializable()
 
 class _ProductOption implements ProductOption {
-  const _ProductOption({required this.key, this.gtin, this.name, this.cheapest, final  List<Offer> stores = const <Offer>[], this.nStores = 0, this.nOffers = 0, this.ncm}): _stores = stores;
+  const _ProductOption({required this.key, this.gtin, this.name, this.cheapest, final  List<Offer> stores = const <Offer>[], this.nStores = 0, this.nOffers = 0, this.ncm, this.tier = 1}): _stores = stores;
   factory _ProductOption.fromJson(Map<String, dynamic> json) => _$ProductOptionFromJson(json);
 
 @override final  String key;
@@ -804,6 +809,11 @@ class _ProductOption implements ProductOption {
 @override@JsonKey() final  int nStores;
 @override@JsonKey() final  int nOffers;
 @override final  String? ncm;
+/// `1` (the literal product asked for) | `2` (a formulation/packaging
+/// variant the query didn't name — Zero, Retornável, …). The backend
+/// already sorts tier 1 before tier 2, so this is only needed to draw the
+/// "variações" split, not to re-sort.
+@override@JsonKey() final  int tier;
 
 /// Create a copy of ProductOption
 /// with the given fields replaced by the non-null parameter values.
@@ -818,16 +828,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProductOption&&(identical(other.key, key) || other.key == key)&&(identical(other.gtin, gtin) || other.gtin == gtin)&&(identical(other.name, name) || other.name == name)&&(identical(other.cheapest, cheapest) || other.cheapest == cheapest)&&const DeepCollectionEquality().equals(other._stores, _stores)&&(identical(other.nStores, nStores) || other.nStores == nStores)&&(identical(other.nOffers, nOffers) || other.nOffers == nOffers)&&(identical(other.ncm, ncm) || other.ncm == ncm));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProductOption&&(identical(other.key, key) || other.key == key)&&(identical(other.gtin, gtin) || other.gtin == gtin)&&(identical(other.name, name) || other.name == name)&&(identical(other.cheapest, cheapest) || other.cheapest == cheapest)&&const DeepCollectionEquality().equals(other._stores, _stores)&&(identical(other.nStores, nStores) || other.nStores == nStores)&&(identical(other.nOffers, nOffers) || other.nOffers == nOffers)&&(identical(other.ncm, ncm) || other.ncm == ncm)&&(identical(other.tier, tier) || other.tier == tier));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,key,gtin,name,cheapest,const DeepCollectionEquality().hash(_stores),nStores,nOffers,ncm);
+int get hashCode => Object.hash(runtimeType,key,gtin,name,cheapest,const DeepCollectionEquality().hash(_stores),nStores,nOffers,ncm,tier);
 
 @override
 String toString() {
-  return 'ProductOption(key: $key, gtin: $gtin, name: $name, cheapest: $cheapest, stores: $stores, nStores: $nStores, nOffers: $nOffers, ncm: $ncm)';
+  return 'ProductOption(key: $key, gtin: $gtin, name: $name, cheapest: $cheapest, stores: $stores, nStores: $nStores, nOffers: $nOffers, ncm: $ncm, tier: $tier)';
 }
 
 
@@ -838,7 +848,7 @@ abstract mixin class _$ProductOptionCopyWith<$Res> implements $ProductOptionCopy
   factory _$ProductOptionCopyWith(_ProductOption value, $Res Function(_ProductOption) _then) = __$ProductOptionCopyWithImpl;
 @override @useResult
 $Res call({
- String key, String? gtin, String? name, Offer? cheapest, List<Offer> stores, int nStores, int nOffers, String? ncm
+ String key, String? gtin, String? name, Offer? cheapest, List<Offer> stores, int nStores, int nOffers, String? ncm, int tier
 });
 
 
@@ -855,7 +865,7 @@ class __$ProductOptionCopyWithImpl<$Res>
 
 /// Create a copy of ProductOption
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? key = null,Object? gtin = freezed,Object? name = freezed,Object? cheapest = freezed,Object? stores = null,Object? nStores = null,Object? nOffers = null,Object? ncm = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? key = null,Object? gtin = freezed,Object? name = freezed,Object? cheapest = freezed,Object? stores = null,Object? nStores = null,Object? nOffers = null,Object? ncm = freezed,Object? tier = null,}) {
   return _then(_ProductOption(
 key: null == key ? _self.key : key // ignore: cast_nullable_to_non_nullable
 as String,gtin: freezed == gtin ? _self.gtin : gtin // ignore: cast_nullable_to_non_nullable
@@ -865,7 +875,8 @@ as Offer?,stores: null == stores ? _self._stores : stores // ignore: cast_nullab
 as List<Offer>,nStores: null == nStores ? _self.nStores : nStores // ignore: cast_nullable_to_non_nullable
 as int,nOffers: null == nOffers ? _self.nOffers : nOffers // ignore: cast_nullable_to_non_nullable
 as int,ncm: freezed == ncm ? _self.ncm : ncm // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,tier: null == tier ? _self.tier : tier // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -889,7 +900,9 @@ $OfferCopyWith<$Res>? get cheapest {
 mixin _$Precos {
 
 /// The recovered barcode, or null when the match was by description.
- String? get gtin;/// `gtin` | `desc` — how the match was made.
+ String? get gtin;/// `gtin` | `canonical` | `desc` — how the match was made. `canonical` is
+/// a curated meat/produce alias lookup (no GTIN, but a narrower search key
+/// than the raw description) — still `approx` confidence, same as `desc`.
 ///
 /// Defaulted rather than required, and defaulted to the *cautious* pair
 /// with [confidence]: a response missing these must never read as an exact
@@ -1135,7 +1148,9 @@ class _Precos implements Precos {
 
 /// The recovered barcode, or null when the match was by description.
 @override final  String? gtin;
-/// `gtin` | `desc` — how the match was made.
+/// `gtin` | `canonical` | `desc` — how the match was made. `canonical` is
+/// a curated meat/produce alias lookup (no GTIN, but a narrower search key
+/// than the raw description) — still `approx` confidence, same as `desc`.
 ///
 /// Defaulted rather than required, and defaulted to the *cautious* pair
 /// with [confidence]: a response missing these must never read as an exact

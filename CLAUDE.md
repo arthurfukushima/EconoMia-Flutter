@@ -66,15 +66,44 @@ everything in the phase that is not blocked, and say plainly what was left out.
   gated trend → a learning nudge, never a fabricated promo. Savings are framed as
   opportunity ("dá pra economizar"), never as already banked.
 
+## Configuration
+
+**No hosts, endpoints or request-pacing numbers hardcoded in feature code.**
+They live in `assets/config/app_config.json`, are typed by
+[`lib/core/app_config.dart`](lib/core/app_config.dart), and reach the app
+through `appConfigProvider`.
+
+- `assets/config/app_config.json` — committed defaults, what a fresh clone runs on.
+- `assets/config/app_config.local.json` — **gitignored** per-machine override,
+  merged over the base one section at a time (name only what differs). Copy
+  `app_config.local.example.json` to start.
+- Every field also has a compile-time default in `AppConfig.fallback`, so tests
+  and a config-less build still work. `appConfigProvider` defaults to it rather
+  than throwing.
+
+Adding a knob: add the field + its default to the right section class, name it
+in `app_config.json`, read it via `ref.watch(appConfigProvider)`. A malformed
+JSON file throws at launch on purpose — a typo must not look like a server
+outage an hour later.
+
 ## Backend
 
-Three already-deployed Vercel functions at `https://econo-mia.vercel.app`:
-`/api/cep`, `/api/nfce`, `/api/precos`. **This repo is a client — never
+Deployed Vercel functions — base URL is `api.baseUrl` in config, **not** a
+constant (each dev deploys their own project; `econo-mia-hugo.vercel.app` and
+`econo-mia.vercel.app` are different accounts). `/api/cep`, `/api/nfce`,
+`/api/precos`, `/api/suggest`, `/api/catalog`. **This repo is a client — never
 re-implement NFC-e parsing or price scraping in Dart.** Errors come back as
 `{error: "<snake_case>"}`.
 
-Menor Preço rate-limits: keep the request pools at concurrency 6 for receipt
-enrichment and 3 for list pricing.
+`/api/precos` is **two-step**: a GET serves a cached result or answers
+`{needsFetch: true}`; on a miss the *device* fetches Menor Preço directly
+(`menorPreco.baseUrl`) and POSTs the raw `produtos` back for matching. The
+backend never fetches it — a serverless egress IP gets fed fabricated decoy
+data (garbled names, non-PR states), which it rejects as
+`produtos_implausible`. `EconomiaApi._priceQuery` owns the whole dance.
+
+Menor Preço rate-limits: the request pools are `pricing.receiptConcurrency` (6)
+and `pricing.listConcurrency` (3) in config — tune there, not in the code.
 
 ## Third-party services — keep the boundary
 

@@ -18,6 +18,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Phase 12. The parser is the user-facing half; the cache rules are the half
 /// that can be quietly wrong — a failed refresh that wipes good prices, or that
 /// stamps a fresh timestamp on a failure and so stops retrying.
+
+/// Prefs with the shopping-list index already created — `main()` awaits
+/// `initLists()` before anything reads a list, so a test that skips it would
+/// be exercising a state the app never reaches.
+Future<Prefs> _initedPrefs() async {
+  final prefs = Prefs(await SharedPreferences.getInstance());
+  await prefs.initLists();
+  return prefs;
+}
+
+/// What actually reached disk for the list on screen.
+List<ListItem> _onDisk(ProviderContainer container) {
+  final prefs = container.read(prefsProvider);
+  return prefs.itemsOf(prefs.activeListId);
+}
+
 void main() {
   group('parseItem', () {
     test('"4x Tomates" — a count prefix', () {
@@ -78,6 +94,34 @@ void main() {
 
     test('nothing typed → nothing added', () {
       expect(parseInput('   ,\n '), isEmpty);
+    });
+
+    // People paste out of Notes/Word/PDF, and that arrives decorated.
+    test('bullets and dashes are stripped, not treated as part of the name', () {
+      final lines = parseInput('• 12 Pães\n- Toddy\n— 2x Leite\n* Cafe');
+      expect(lines.map((l) => l.name), ['Pães', 'Toddy', 'Leite', 'Cafe']);
+      expect(lines.map((l) => l.qty), [12, 1, 2, 1]);
+    });
+
+    test('numbering is stripped, but a bare count is still a quantity', () {
+      expect(parseInput('1. Arroz').single.name, 'Arroz');
+      expect(parseInput('1. Arroz').single.qty, 1);
+      expect(parseInput('2) Feijao').single.name, 'Feijao');
+      // "4 Tomates" is four tomatoes, not item #4 — no trailing '.' or ')'.
+      expect(parseInput('4 Tomates').single.qty, 4);
+      expect(parseInput('4 Tomates').single.name, 'Tomates');
+    });
+
+    test('non-breaking spaces and doubled whitespace collapse', () {
+      final line = parseInput('•  2x  Leite   Integral').single;
+      expect(line.qty, 2);
+      expect(line.name, 'Leite Integral');
+    });
+
+    test('the name gets a capital, the rest of the casing is left alone', () {
+      expect(parseItem('tomates').name, 'Tomates');
+      expect(parseItem('TODDY').name, 'TODDY');
+      expect(parseItem('pão DE queijo').name, 'Pão DE queijo');
     });
   });
 
@@ -242,6 +286,7 @@ void main() {
         'economia.shoppingList': jsonEncode([for (final i in items) i.toJson()]),
       });
       final prefs = Prefs(await SharedPreferences.getInstance());
+      await prefs.initLists();
       final container = ProviderContainer(overrides: [
         prefsProvider.overrideWithValue(prefs),
         economiaApiProvider.overrideWithValue(EconomiaApi(ApiClient(client: client))),
@@ -272,7 +317,7 @@ void main() {
       final container = await boot(down, items: [cached]);
       await container.read(listaControllerProvider.notifier).refresh();
 
-      final onDisk = container.read(prefsProvider).shoppingList.single;
+      final onDisk = _onDisk(container).single;
       expect(onDisk.precos?.cheapest?.priceCents, 1299);
       expect(onDisk.pricedAt, cachedAt);
     });
@@ -352,7 +397,7 @@ void main() {
       final items = container.read(listaControllerProvider);
       expect(items.map((i) => i.name), ['Tomates', 'Carne']);
       expect(items.every((i) => i.precos != null), isTrue);
-      expect(container.read(prefsProvider).shoppingList.length, 2, reason: 'persisted, not memory-only');
+      expect(_onDisk(container).length, 2, reason: 'persisted, not memory-only');
     });
 
     test('newest first, and an edit round-trips to disk', () async {
@@ -364,11 +409,11 @@ void main() {
 
       final id = container.read(listaControllerProvider).first.id;
       await controller.toggle(id);
-      expect(container.read(prefsProvider).shoppingList.first.checked, isTrue);
+      expect(_onDisk(container).first.checked, isTrue);
 
       await controller.remove(id);
       expect(container.read(listaControllerProvider).map((i) => i.name), ['Toddy']);
-      expect(container.read(prefsProvider).shoppingList.length, 1);
+      expect(_onDisk(container).length, 1);
     });
 
     test('crossing the kg boundary re-prices; un ↔ L does not', () async {
@@ -396,7 +441,7 @@ void main() {
         return http.Response.bytes(utf8.encode('{}'), 200);
       });
       final container = ProviderContainer(overrides: [
-        prefsProvider.overrideWithValue(Prefs(await SharedPreferences.getInstance())),
+        prefsProvider.overrideWithValue(await _initedPrefs()),
         economiaApiProvider.overrideWithValue(EconomiaApi(ApiClient(client: counting))),
       ]);
       addTearDown(container.dispose);
@@ -404,6 +449,63 @@ void main() {
       await container.read(listaControllerProvider.notifier).add('Toddy');
       expect(calls, 0);
       expect(container.read(listaControllerProvider).single.precos, isNull);
+    });
+  });
+
+  // Catálogo's "+ Lista": a store-reported product name, not a jotted line.
+  group('addNamed (from Catálogo)', () {
+    Future<ProviderContainer> boot() async {
+      SharedPreferences.setMockInitialValues({});
+      final container = ProviderContainer(overrides: [
+        prefsProvider.overrideWithValue(await _initedPrefs()),
+        economiaApiProvider.overrideWithValue(
+          EconomiaApi(ApiClient(client: MockClient((_) async => http.Response('{}', 200)))),
+        ),
+      ]);
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    // The reason this doesn't go through add(): parseInput would read the
+    // leading packaging token as a quantity prefix and eat it off the name.
+    test('a leading packaging token stays part of the name', () async {
+      final container = await boot();
+      await container.read(listaControllerProvider.notifier).addNamed('1KG ARROZ TIO JOAO');
+
+      final item = container.read(listaControllerProvider).single;
+      expect(item.name, '1KG ARROZ TIO JOAO');
+      expect(item.qty, 1);
+    });
+
+    test('a KG anywhere in the description asks for a per-KG basis', () async {
+      final container = await boot();
+      await container.read(listaControllerProvider.notifier).addNamed('PICANHA BOV KG');
+
+      expect(container.read(listaControllerProvider).single.unit, 'kg');
+    });
+
+    test('anything else is a packaged unit', () async {
+      final container = await boot();
+      await container.read(listaControllerProvider.notifier).addNamed('LEITE INTEGRAL ITALAC 1L');
+
+      expect(container.read(listaControllerProvider).single.unit, 'un');
+    });
+
+    test('newest first, and it reaches disk', () async {
+      final container = await boot();
+      final controller = container.read(listaControllerProvider.notifier);
+      await controller.addNamed('ARROZ');
+      await controller.addNamed('FEIJAO');
+
+      expect(container.read(listaControllerProvider).map((i) => i.name), ['FEIJAO', 'ARROZ']);
+      expect(_onDisk(container).map((i) => i.name), ['FEIJAO', 'ARROZ']);
+    });
+
+    test('a blank description adds nothing', () async {
+      final container = await boot();
+      await container.read(listaControllerProvider.notifier).addNamed('   ');
+
+      expect(container.read(listaControllerProvider), isEmpty);
     });
   });
 }

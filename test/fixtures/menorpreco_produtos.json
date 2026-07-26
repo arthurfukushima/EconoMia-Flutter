@@ -1,0 +1,43 @@
+{
+  "_note": "Hand-built from menorpreco.notaparana.pr.gov.br's documented shape (src/lib/precos.js, api/precos.js's candidatesFor/summarize in the backend-integration branch) — not a live recording. The upstream endpoint isn't recorded elsewhere in this repo, and every deployed /api/precos capture we do have (test/fixtures/precos_*.json) was made against prod running the OLD backend (no needsFetch/produtos passthrough), so it can't stand in for this shape either.",
+  "produtos": [
+    {
+      "gtin": "7891000100103",
+      "desc": "LEITE INTEGRAL ITALAC 1L",
+      "ncm": "0401",
+      "valor": "4.49",
+      "distkm": 1.2,
+      "datahora": "2026-07-25T10:00:00.000Z",
+      "estabelecimento": {
+        "codigo": "1001",
+        "nm_emp": "MUFFATO SUPERCENTER LTDA",
+        "nm_fan": "MUFFATO SUPERCENTER",
+        "bairro": "CENTRO",
+        "mun": "LONDRINA",
+        "uf": "PR",
+        "tp_logr": "RUA",
+        "nm_logr": "SAO PAULO",
+        "nr_logr": "100"
+      }
+    },
+    {
+      "gtin": "7891000100103",
+      "desc": "LEITE INTEGRAL ITALAC 1L",
+      "ncm": "0401",
+      "valor": "3.98",
+      "distkm": 2.4,
+      "datahora": "2026-07-25T09:30:00.000Z",
+      "estabelecimento": {
+        "codigo": "1002",
+        "nm_emp": "CONDOR SUPER CENTER LTDA",
+        "nm_fan": "CONDOR",
+        "bairro": "GLEBA PALHANO",
+        "mun": "LONDRINA",
+        "uf": "PR",
+        "tp_logr": "AVENIDA",
+        "nm_logr": "MADRE LEONIA MILITO",
+        "nr_logr": "1620"
+      }
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "_note": "Hand-built from api/catalog.js's documented response shape (backend-integration branch) — /api/catalog isn't deployed to prod yet, so there is no live recording to pin this against. Re-record once it ships (see the port's final report).",
+  "marketCodigo": "1001",
+  "items": [
+    {
+      "gtin": "7891000100103",
+      "description": "LEITE INTEGRAL ITALAC 1L",
+      "ncm": "0401",
+      "priceCents": 449,
+      "fetchedAt": "2026-07-25T10:00:00.000Z",
+      "minCents": 398,
+      "maxCents": 512,
+      "nStores": 4,
+      "rank": 3,
+      "category": "laticinios",
+      "bucket": "caro",
+      "pct": 45
+    },
+    {
+      "gtin": "7891234567895",
+      "description": "ARROZ TIO JOAO 5KG",
+      "ncm": "1006",
+      "priceCents": 2050,
+      "fetchedAt": "2026-07-25T09:00:00.000Z",
+      "minCents": 2050,
+      "maxCents": 2450,
+      "nStores": 2,
+      "rank": 1,
+      "category": "outros",
+      "bucket": "otimo",
+      "pct": 0
+    }
+  ],
+  "categories": {
+    "laticinios": 1,
+    "outros": 1
+  }
+}

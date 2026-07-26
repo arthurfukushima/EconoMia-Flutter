@@ -7,7 +7,7 @@ import 'models/precos.dart';
 import 'models/receipt.dart';
 
 /// Prices a whole nota against the user's location: one `/api/precos` call per
-/// item, six in flight.
+/// item, `pricing.receiptConcurrency` (default six) in flight.
 ///
 /// Six, not twenty: Menor Preço rate-limits, and a 429 is an item that comes
 /// back silently unpriced. An item whose call fails is left with `precos ==
@@ -25,7 +25,7 @@ Future<Receipt> enrichReceipt(
   Receipt receipt,
   AppLocation location,
 ) async {
-  final items = await pooled(receipt.items, 6, (ReceiptItem item) async {
+  final items = await pooled(receipt.items, api.config.pricing.receiptConcurrency, (ReceiptItem item) async {
     Precos? precos;
     try {
       precos = await api.precosForItem(

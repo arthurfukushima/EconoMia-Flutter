@@ -177,7 +177,7 @@ class _PriceSummary extends StatelessWidget {
           const SizedBox(height: 18),
           Text('Lojas próximas (${data.stores.length})', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
-          CardList(children: [for (final s in data.stores) OfferSpan(offer: s)]),
+          CardList(children: [for (final s in data.stores) StoreRow(offer: s)]),
           const SizedBox(height: 10),
           Text(
             'Preços de notas fiscais recentes na sua região (Menor Preço / Nota Paraná).',
@@ -189,9 +189,4 @@ class _PriceSummary extends StatelessWidget {
   }
 }
 
-String _rangeText(PriceRange? range) {
-  if (range == null) return '—';
-  return range.minCents == range.maxCents
-      ? formatBRL(range.minCents)
-      : '${formatBRL(range.minCents)} – ${formatBRL(range.maxCents)}';
-}
+String _rangeText(PriceRange? range) => formatRangeBRL(range?.minCents, range?.maxCents);

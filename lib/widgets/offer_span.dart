@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/app_config.dart';
 import '../core/money.dart';
 import '../data/models/precos.dart';
 import '../theme/tokens.dart';
@@ -64,17 +66,83 @@ class OfferSpan extends StatelessWidget {
 
 String _km(double km) => '${km.toStringAsFixed(1).replaceAll('.', ',')} km';
 
-class _MapLink extends StatelessWidget {
+/// One store's offer as a two-line card, for "N mercados" lists.
+///
+/// [OfferSpan] packs the same facts into one wrapping sentence, which is fine
+/// inline ("mais barato: …") but cramped as a list row — a long store name
+/// pushes price, distance and age onto a third line. Here line 1 is the place
+/// and line 2 packs price/distance/age behind icons, with the map link as a
+/// corner button instead of a word in the middle of the text.
+class StoreRow extends ConsumerWidget {
+  const StoreRow({super.key, required this.offer});
+
+  final Offer offer;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+    final meta = theme.textTheme.labelMedium!;
+    final age = priceAge(offer.datahora)?.replaceFirst(RegExp(r'^de '), '');
+    final where = [
+      offer.store ?? 'loja próxima',
+      if ((offer.bairro ?? '').isNotEmpty) offer.bairro!,
+    ].join(' · ');
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(where, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Text(formatBRL(offer.priceCents), style: meta.copyWith(color: sa.green)),
+                  if (offer.km != null) ...[
+                    const SizedBox(width: 8),
+                    Text('📍 ${_km(offer.km!)}', style: meta.copyWith(color: sa.muted)),
+                  ],
+                  if (age != null) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text('🕒 $age', style: meta.copyWith(color: sa.muted), overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+        if ((offer.addr ?? '').isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.place_outlined, size: 18),
+            color: sa.amberPress,
+            tooltip: 'ver ${offer.store ?? 'loja'} no mapa',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => launchUrl(
+              ref.read(appConfigProvider).maps.uriFor(offer.addr!),
+              mode: LaunchMode.externalApplication,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MapLink extends ConsumerWidget {
   const _MapLink({required this.addr});
 
   final String addr;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => launchUrl(
-        Uri.https('www.google.com', '/maps/search/', {'api': '1', 'query': addr}),
+        ref.read(appConfigProvider).maps.uriFor(addr),
         mode: LaunchMode.externalApplication,
       ),
       child: Text(

@@ -71,6 +71,12 @@ abstract class ProductOption with _$ProductOption {
     @Default(0) int nStores,
     @Default(0) int nOffers,
     String? ncm,
+
+    /// `1` (the literal product asked for) | `2` (a formulation/packaging
+    /// variant the query didn't name — Zero, Retornável, …). The backend
+    /// already sorts tier 1 before tier 2, so this is only needed to draw the
+    /// "variações" split, not to re-sort.
+    @Default(1) int tier,
   }) = _ProductOption;
 
   factory ProductOption.fromJson(Map<String, dynamic> json) =>
@@ -87,7 +93,9 @@ abstract class Precos with _$Precos {
     /// The recovered barcode, or null when the match was by description.
     String? gtin,
 
-    /// `gtin` | `desc` — how the match was made.
+    /// `gtin` | `canonical` | `desc` — how the match was made. `canonical` is
+    /// a curated meat/produce alias lookup (no GTIN, but a narrower search key
+    /// than the raw description) — still `approx` confidence, same as `desc`.
     ///
     /// Defaulted rather than required, and defaulted to the *cautious* pair
     /// with [confidence]: a response missing these must never read as an exact

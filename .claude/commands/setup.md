@@ -5,10 +5,11 @@ description: Onboard a new dev — install deps, verify the stack runs
 Onboard new machine for EconoMia. Do steps in order. Report status each step (OK / SKIP / NEEDS-HUMAN). Don't invent secrets — anything needing a credential, stop and ask user.
 
 This is a **Flutter client only**. Per CLAUDE.md: NFC-e parsing and price
-scraping already run behind three deployed Vercel functions
-(`https://econo-mia.vercel.app`), hardcoded as `kApiBase` in
-`lib/core/api_client.dart`. There is no local backend, database, or `.env` to
-wire up to run this app — skip any step that would suggest otherwise.
+scraping already run behind deployed Vercel functions. The backend host is
+**configuration, not a constant** — `api.baseUrl` in
+`assets/config/app_config.json`, typed by `lib/core/app_config.dart`. There is
+no local backend, database, or `.env` to wire up to run this app — skip any
+step that would suggest otherwise.
 
 ## 1. Flutter SDK
 Check `flutter --version`. Confirm it supports Android 8+ / iOS 13+ targets (see `.metadata` / `pubspec.yaml` for the pinned SDK constraint). Run `flutter doctor` and report any red flags (missing Android toolchain, missing Xcode, etc.) — don't try to fix toolchain installs yourself, just report.

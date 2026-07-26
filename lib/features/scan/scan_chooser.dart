@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../theme/tokens.dart';
 import 'scan_mode.dart';
 
-/// Asks what the user is about to scan. Resolves to `null` if dismissed.
+/// Asks what the user is about to scan. Resolves to `null` if dismissed —
+/// including when the sheet routes straight to "buscar por nome" itself,
+/// since that option has no [ScanMode] to hand back to a scan-mode caller.
 Future<ScanMode?> showScanChooser(BuildContext context) {
   return showModalBottomSheet<ScanMode>(
     context: context,
+    // Three options no longer fit the default half-screen sheet height on a
+    // short viewport — scrollable so a fourth option never overflows again.
+    isScrollControlled: true,
     builder: (context) => const _ScanChooser(),
   );
 }
@@ -42,6 +48,17 @@ class _ScanChooser extends StatelessWidget {
               title: 'Produto',
               subtitle: 'Código de barras — compara o preço perto',
               onTap: () => Navigator.pop(context, ScanMode.produto),
+            ),
+            const SizedBox(height: 10),
+            _Option(
+              emoji: '🔎',
+              tint: theme.sa.tintGreen,
+              title: 'Buscar pelo nome',
+              subtitle: 'Sem código à mão — digite o nome do produto',
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/produto/busca');
+              },
             ),
           ],
         ),
