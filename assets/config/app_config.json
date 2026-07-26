@@ -1,0 +1,30 @@
+{
+  "_note": "Committed defaults, shared by everyone. To point your build somewhere else, DON'T edit this file — copy app_config.local.example.json to app_config.local.json (gitignored) and override only what differs. See lib/core/app_config.dart.",
+
+  "api": {
+    "baseUrl": "https://econo-mia-hugo.vercel.app",
+    "timeoutSeconds": 45
+  },
+
+  "menorPreco": {
+    "baseUrl": "https://menorpreco.notaparana.pr.gov.br/api/v1/produtos",
+    "timeoutSeconds": 30
+  },
+
+  "openFoodFacts": {
+    "baseUrl": "https://world.openfoodfacts.org/api/v2/product",
+    "timeoutSeconds": 15
+  },
+
+  "maps": {
+    "searchUrl": "https://www.google.com/maps/search/?api=1&query={query}"
+  },
+
+  "pricing": {
+    "receiptConcurrency": 6,
+    "listConcurrency": 3,
+    "storeSeedConcurrency": 3,
+    "seedStaples": ["arroz", "farinha", "leite", "cafe", "detergente"],
+    "preciseSeedRadiusKm": 2
+  }
+}

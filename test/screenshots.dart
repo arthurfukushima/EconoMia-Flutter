@@ -20,7 +20,9 @@ import 'package:economia/data/off_api.dart';
 import 'package:economia/data/prefs.dart';
 import 'package:economia/data/receipt_repository.dart';
 import 'package:economia/domain/lista_parse.dart';
+import 'package:economia/features/catalogo/catalogo_screen.dart';
 import 'package:economia/features/lista/lista_screen.dart';
+import 'package:economia/features/produto/busca_screen.dart';
 import 'package:economia/features/produto/produto_screen.dart';
 import 'package:economia/features/receipt/receipt_screen.dart';
 import 'package:economia/router.dart';
@@ -57,6 +59,7 @@ void main() {
 
     SharedPreferences.setMockInitialValues({});
     final prefs = Prefs(await SharedPreferences.getInstance());
+    await prefs.initLists();
     final repo = await tester.runAsync(
       () async => ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('shots_home.db')),
     );
@@ -108,6 +111,7 @@ void main() {
       ).toJson()),
     });
     final prefs = Prefs(await SharedPreferences.getInstance());
+    await prefs.initLists();
     final repo = await tester.runAsync(
       () async => ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('shots_home_location.db')),
     );
@@ -142,7 +146,9 @@ void main() {
     final setUp = await tester.runAsync(() async {
       final repo = ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('$name.db'));
       await repo.saveReceipt(receipt);
-      return (repo, Prefs(await SharedPreferences.getInstance()));
+      final prefs = Prefs(await SharedPreferences.getInstance());
+      await prefs.initLists();
+      return (repo, prefs);
     });
 
     await tester.pumpWidget(ProviderScope(
@@ -333,7 +339,9 @@ void main() {
       final repo = ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('home_with_savings.db'));
       await repo.saveReceipt(first);
       await repo.saveReceipt(second);
-      return (repo, Prefs(await SharedPreferences.getInstance()));
+      final prefs = Prefs(await SharedPreferences.getInstance());
+      await prefs.initLists();
+      return (repo, prefs);
     });
 
     await tester.pumpWidget(ProviderScope(
@@ -379,7 +387,9 @@ void main() {
       final repo = ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('home_atalhos_dica.db'));
       await repo.saveReceipt(pricedSample());
       await repo.saveOffers(offers);
-      return (repo, Prefs(await SharedPreferences.getInstance()));
+      final prefs = Prefs(await SharedPreferences.getInstance());
+      await prefs.initLists();
+      return (repo, prefs);
     });
 
     await tester.pumpWidget(ProviderScope(
@@ -425,7 +435,9 @@ void main() {
       await repo.saveReceipt(a);
       await repo.saveReceipt(b);
       await repo.saveReceipt(c);
-      return (repo, Prefs(await SharedPreferences.getInstance()));
+      final prefs = Prefs(await SharedPreferences.getInstance());
+      await prefs.initLists();
+      return (repo, prefs);
     });
 
     await tester.pumpWidget(ProviderScope(
@@ -456,7 +468,9 @@ void main() {
     final setUp = await tester.runAsync(() async {
       final repo = ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('receipt_second_pass.db'));
       await repo.saveReceipt(receipt);
-      return (repo, Prefs(await SharedPreferences.getInstance()));
+      final prefs = Prefs(await SharedPreferences.getInstance());
+      await prefs.initLists();
+      return (repo, prefs);
     });
 
     await tester.pumpWidget(ProviderScope(
@@ -500,6 +514,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final repo = await historyRepo(tester, 'history_empty', const []);
     final prefs = Prefs(await SharedPreferences.getInstance());
+    await prefs.initLists();
     await tester.pumpWidget(ProviderScope(
       overrides: [
         prefsProvider.overrideWithValue(prefs),
@@ -538,6 +553,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final repo = await historyRepo(tester, 'history', [unpriced, pricedSample()]);
     final prefs = Prefs(await SharedPreferences.getInstance());
+    await prefs.initLists();
     await tester.pumpWidget(ProviderScope(
       overrides: [
         prefsProvider.overrideWithValue(prefs),
@@ -570,6 +586,7 @@ void main() {
       ).toJson()),
     });
     final prefs = Prefs(await SharedPreferences.getInstance());
+    await prefs.initLists();
 
     final ontem = DateTime.now().subtract(const Duration(days: 1)).toIso8601String();
     final anteontem = DateTime.now().subtract(const Duration(days: 2)).toIso8601String();
@@ -740,6 +757,7 @@ void main() {
       'economia.listStore': ?listStore,
     });
     final prefs = Prefs(await SharedPreferences.getInstance());
+    await prefs.initLists();
     final repo = await tester.runAsync(
       () async => ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('$name.db')),
     );
@@ -815,4 +833,151 @@ void main() {
   // binding's unregistered platform channel regardless of what's on screen.
   // Verified instead by domain tests (compareHere, mergeStores/defaultStoreCod)
   // and by reading the widget tree logic against the reference MercadoView.
+
+  // Backend-integration port: "buscar por nome" — a vague term ("toddy")
+  // turned up more than one real product, so the option switcher shows.
+  testWidgets('shots — buscar por nome', (tester) async {
+    await _loadFonts();
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    SharedPreferences.setMockInitialValues({
+      'economia.location': jsonEncode(const AppLocation(
+        lat: -23.31,
+        lng: -51.16,
+        cep: '86010000',
+        city: 'Londrina',
+        raio: 15,
+      ).toJson()),
+    });
+    final prefs = Prefs(await SharedPreferences.getInstance());
+    await prefs.initLists();
+
+    final body = jsonEncode({
+      'basis': 'desc',
+      'confidence': 'approx',
+      'name': 'TODDY ACHOCOLATADO 400G',
+      'options': [
+        {
+          'key': 'a',
+          'name': 'TODDY ACHOCOLATADO 400G',
+          'cheapest': {'priceCents': 899, 'store': 'CONDOR', 'bairro': 'Gleba Palhano', 'km': 2.4},
+          'nStores': 3,
+          'stores': [
+            {'cod': '1', 'priceCents': 899, 'store': 'CONDOR', 'bairro': 'Gleba Palhano', 'km': 2.4},
+          ],
+        },
+        {
+          'key': 'b',
+          'name': 'TODDY ZERO ACHOCOLATADO 380G',
+          'cheapest': {'priceCents': 950, 'store': 'SUPER MUFFATO', 'bairro': 'Centro', 'km': 3.1},
+          'nStores': 2,
+        },
+      ],
+    });
+    final api = EconomiaApi(ApiClient(
+      client: MockClient((req) async => http.Response.bytes(utf8.encode(body), 200)),
+    ));
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        prefsProvider.overrideWithValue(prefs),
+        economiaApiProvider.overrideWithValue(api),
+      ],
+      child: MaterialApp(theme: buildTheme(), home: const BuscaScreen()),
+    ));
+
+    await tester.enterText(find.byType(TextField), 'toddy');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.tap(find.widgetWithText(FilledButton, 'Buscar'));
+    await tester.pumpAndSettle();
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/busca_produto.png'));
+  });
+
+  // Backend-integration port: Catálogo — a market's whole cached assortment,
+  // browsable without scanning a single item, category chips + cheapness
+  // buckets (ótimo/ok/caro/único).
+  testWidgets('shots — catalogo', (tester) async {
+    await _loadFonts();
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final body = jsonEncode({
+      'marketCodigo': '1001',
+      'items': [
+        {
+          'gtin': '7891000100103',
+          'description': 'LEITE INTEGRAL ITALAC 1L',
+          'ncm': '0401',
+          'priceCents': 449,
+          'minCents': 398,
+          'maxCents': 512,
+          'nStores': 4,
+          'rank': 3,
+          'category': 'laticinios',
+          'bucket': 'caro',
+          'pct': 45,
+        },
+        {
+          'gtin': '7891234567895',
+          'description': 'ARROZ TIO JOAO 5KG',
+          'ncm': '1006',
+          // rank 1 ⇒ this *is* the region minimum, so pct is 0 ("melhor
+          // preço"). Keep the three consistent; they come from one query.
+          'priceCents': 2050,
+          'minCents': 2050,
+          'maxCents': 2450,
+          'nStores': 2,
+          'rank': 1,
+          'category': 'outros',
+          'bucket': 'otimo',
+          'pct': 0,
+        },
+        {
+          'description': 'BANANA NANICA KG',
+          'priceCents': 599,
+          'nStores': 1,
+          'rank': 1,
+          'category': 'frutas',
+          'bucket': 'unico',
+        },
+      ],
+      'categories': {'laticinios': 1, 'outros': 1, 'frutas': 1},
+    });
+    // Every request answers with the catalog body; the store-seeding calls
+    // read `stores` out of it, find none, and leave the picker showing the
+    // routed market's own label — which is the state arriving from Mercado.
+    final api = EconomiaApi(ApiClient(
+      client: MockClient((req) async => http.Response.bytes(utf8.encode(body), 200)),
+    ));
+
+    SharedPreferences.setMockInitialValues({
+      'economia.location': jsonEncode(const AppLocation(
+        lat: -23.31,
+        lng: -51.16,
+        cep: '86010000',
+        city: 'Londrina',
+        raio: 15,
+      ).toJson()),
+      'economia.currentStore': '1001',
+    });
+    final prefs = Prefs(await SharedPreferences.getInstance());
+    await prefs.initLists();
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        prefsProvider.overrideWithValue(prefs),
+        economiaApiProvider.overrideWithValue(api),
+      ],
+      child: MaterialApp(
+        theme: buildTheme(),
+        home: const CatalogoScreen(marketCodigo: '1001', marketLabel: 'CONDOR · Gleba Palhano'),
+      ),
+    ));
+
+    await tester.pumpAndSettle();
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/catalogo.png'));
+  });
 }

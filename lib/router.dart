@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'features/catalogo/catalogo_screen.dart';
 import 'features/history/history_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/lista/lista_screen.dart';
 import 'features/mercado/mercado_screen.dart';
+import 'features/produto/busca_screen.dart';
 import 'features/produto/produto_screen.dart';
 import 'features/receipt/receipt_screen.dart';
 import 'features/resumo/resumo_screen.dart';
@@ -54,6 +56,24 @@ final router = GoRouter(
                   parentNavigatorKey: _rootKey,
                   builder: (_, _) => const MercadoScreen(),
                 ),
+                // Two ways in: from Home with no market chosen yet (the screen's
+                // own picker chooses one), or from Mercado with the market you
+                // are standing in already known.
+                GoRoute(
+                  path: 'catalogo',
+                  parentNavigatorKey: _rootKey,
+                  builder: (_, _) => const CatalogoScreen(),
+                  routes: [
+                    GoRoute(
+                      path: ':cod',
+                      parentNavigatorKey: _rootKey,
+                      builder: (_, state) => CatalogoScreen(
+                        marketCodigo: state.pathParameters['cod'],
+                        marketLabel: state.uri.queryParameters['nome'],
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -89,6 +109,14 @@ final router = GoRouter(
       builder: (_, state) => ScanScreen(
         mode: state.uri.queryParameters['mode'] == 'produto' ? ScanMode.produto : ScanMode.nota,
       ),
+    ),
+    // Declared before the `:gtin` route below: go_router matches sibling
+    // routes in declaration order, so this static path must come first or
+    // "/produto/busca" would match the dynamic route with gtin="busca".
+    GoRoute(
+      path: '/produto/busca',
+      parentNavigatorKey: _rootKey,
+      builder: (_, _) => const BuscaScreen(),
     ),
     GoRoute(
       path: '/produto/:gtin',

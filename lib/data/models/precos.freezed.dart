@@ -889,7 +889,9 @@ $OfferCopyWith<$Res>? get cheapest {
 mixin _$Precos {
 
 /// The recovered barcode, or null when the match was by description.
- String? get gtin;/// `gtin` | `desc` — how the match was made.
+ String? get gtin;/// `gtin` | `canonical` | `desc` — how the match was made. `canonical` is
+/// a curated meat/produce alias lookup (no GTIN, but a narrower search key
+/// than the raw description) — still `approx` confidence, same as `desc`.
 ///
 /// Defaulted rather than required, and defaulted to the *cautious* pair
 /// with [confidence]: a response missing these must never read as an exact
@@ -1135,7 +1137,9 @@ class _Precos implements Precos {
 
 /// The recovered barcode, or null when the match was by description.
 @override final  String? gtin;
-/// `gtin` | `desc` — how the match was made.
+/// `gtin` | `canonical` | `desc` — how the match was made. `canonical` is
+/// a curated meat/produce alias lookup (no GTIN, but a narrower search key
+/// than the raw description) — still `approx` confidence, same as `desc`.
 ///
 /// Defaulted rather than required, and defaulted to the *cautious* pair
 /// with [confidence]: a response missing these must never read as an exact

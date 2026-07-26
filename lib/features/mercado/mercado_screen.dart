@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/api_client.dart';
@@ -182,6 +183,20 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
                                     : 'selecione o mercado',
                         onTap: () => _openStorePicker(stores, seeding),
                       ),
+                      if (effectiveCod != null) ...[
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () => context.push(
+                              '/catalogo/$effectiveCod'
+                              '${here?.store != null ? '?nome=${Uri.encodeQueryComponent(here!.store!)}' : ''}',
+                            ),
+                            icon: const Icon(Icons.storefront_rounded, size: 18),
+                            label: const Text('ver catálogo deste mercado'),
+                          ),
+                        ),
+                      ],
                       if (_error != null) ...[
                         const SizedBox(height: 10),
                         Text(_error!, style: theme.textTheme.labelMedium!.copyWith(color: sa.danger)),
@@ -231,9 +246,7 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
 }
 
 /// Region price range as "R$X" or "R$X – R$Y".
-String _rangeText(PriceRange range) => range.minCents == range.maxCents
-    ? formatBRL(range.minCents)
-    : '${formatBRL(range.minCents)} – ${formatBRL(range.maxCents)}';
+String _rangeText(PriceRange range) => formatRangeBRL(range.minCents, range.maxCents);
 
 class _Banner extends StatelessWidget {
   const _Banner({required this.text});

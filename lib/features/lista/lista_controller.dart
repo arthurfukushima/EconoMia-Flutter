@@ -6,16 +6,70 @@ import '../../core/pooled.dart';
 import '../../data/economia_api.dart';
 import '../../data/models/list_item.dart';
 import '../../data/models/precos.dart';
+import '../../data/models/shopping_list.dart';
 import '../../data/prefs.dart';
 import '../../domain/lista.dart';
 import '../../domain/lista_parse.dart';
 import '../location/location_controller.dart';
 
-/// The shopping list itself. Loaded from prefs at startup and written back on
-/// every edit, so it is never in memory only.
+/// Every named list, creation order. Kept apart from the items so switching
+/// lists doesn't rebuild the index and renaming doesn't rebuild the items.
+final listsProvider = NotifierProvider<ListsController, List<ShoppingList>>(
+  ListsController.new,
+);
+
+/// Which list is on screen. Everything below is scoped to it: the items, the
+/// pricing pass, and the per-list store pick.
+final activeListIdProvider = NotifierProvider<ActiveListController, String>(
+  ActiveListController.new,
+);
+
+/// The active list's items. Loaded from prefs and written back on every edit,
+/// so it is never in memory only.
 final listaControllerProvider = NotifierProvider<ListaController, List<ListItem>>(
   ListaController.new,
 );
+
+/// The index of named lists — create, rename, delete. Deleting the active list
+/// (or the last one) moves [activeListIdProvider] itself, since every screen
+/// downstream assumes a list exists.
+class ListsController extends Notifier<List<ShoppingList>> {
+  @override
+  List<ShoppingList> build() => ref.read(prefsProvider).lists;
+
+  Future<ShoppingList> create(String name) async {
+    final list = await ref.read(prefsProvider).createList(name);
+    state = ref.read(prefsProvider).lists;
+    // createList also makes it active; mirror that into the provider so the
+    // screen switches to the list it just made.
+    ref.read(activeListIdProvider.notifier).set(list.id);
+    return list;
+  }
+
+  Future<void> rename(String id, String name) async {
+    await ref.read(prefsProvider).renameList(id, name);
+    state = ref.read(prefsProvider).lists;
+  }
+
+  Future<void> delete(String id) async {
+    final nowActive = await ref.read(prefsProvider).deleteList(id);
+    state = ref.read(prefsProvider).lists;
+    ref.read(activeListIdProvider.notifier).set(nowActive);
+  }
+}
+
+class ActiveListController extends Notifier<String> {
+  @override
+  String build() => ref.read(prefsProvider).activeListId;
+
+  /// Switching lists re-reads that list's items from disk — they were never
+  /// in memory for a list that wasn't on screen.
+  void set(String id) {
+    if (state == id) return;
+    state = id;
+    ref.read(listaControllerProvider.notifier).reload();
+  }
+}
 
 /// Which items have a price lookup in flight. Kept out of the list's own state
 /// so a request that's still running never blanks a row that already has a
@@ -33,12 +87,23 @@ final listPriceErrorProvider = StateProvider<bool>((ref) => false);
 typedef _Result = ({String id, Precos? precos});
 
 class ListaController extends Notifier<List<ListItem>> {
+  /// Read through a getter, never cached: a list switch changes which key
+  /// every read and write below lands on, and a stale copy would write one
+  /// list's items over another's.
+  String get _listId => ref.read(activeListIdProvider);
+
   @override
-  List<ListItem> build() => ref.read(prefsProvider).shoppingList;
+  List<ListItem> build() => ref.read(prefsProvider).itemsOf(ref.read(activeListIdProvider));
+
+  /// Re-reads the active list from disk. Called when the active list changes —
+  /// the items of a list that wasn't on screen were never in memory.
+  void reload() {
+    state = ref.read(prefsProvider).itemsOf(_listId);
+  }
 
   Future<void> _write(List<ListItem> items) {
     state = items;
-    return ref.read(prefsProvider).setShoppingList(items);
+    return ref.read(prefsProvider).setItemsOf(_listId, items);
   }
 
   Future<void> _update(String id, ListItem Function(ListItem item) change) =>
@@ -73,6 +138,28 @@ class ListaController extends Notifier<List<ListItem>> {
     ];
     await _write([...added, ...state]);
     await _price(added);
+  }
+
+  /// Adds a catalog product straight from Catálogo's "+ Lista".
+  ///
+  /// Not routed through [add]: the store-reported description is a whole
+  /// product name, not a jotted line, and `parseInput` would read a leading
+  /// packaging token ("1KG ARROZ…", "PCT FEIJAO…") as a quantity prefix and
+  /// eat it. The unit still has to be right, though — a per-KG product must
+  /// be priced per-KG — so it comes from a `KG` token anywhere in the
+  /// description instead.
+  Future<void> addNamed(String description) async {
+    final name = description.trim();
+    if (name.isEmpty) return;
+    final unit = RegExp(r'\bKG\b', caseSensitive: false).hasMatch(name) ? 'kg' : 'un';
+    final item = ListItem(
+      id: '${DateTime.now().microsecondsSinceEpoch}-0',
+      raw: name,
+      name: name,
+      unit: unit,
+    );
+    await _write([item, ...state]);
+    await _price([item]);
   }
 
   Future<void> toggle(String id) =>
@@ -136,7 +223,7 @@ class ListaController extends Notifier<List<ListItem>> {
 
     try {
       final api = ref.read(economiaApiProvider);
-      final results = await pooled(stale, 3, (ListItem it) async {
+      final results = await pooled(stale, api.config.pricing.listConcurrency, (ListItem it) async {
         try {
           return (
             id: it.id,

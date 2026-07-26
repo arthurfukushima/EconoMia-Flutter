@@ -87,7 +87,9 @@ abstract class Precos with _$Precos {
     /// The recovered barcode, or null when the match was by description.
     String? gtin,
 
-    /// `gtin` | `desc` — how the match was made.
+    /// `gtin` | `canonical` | `desc` — how the match was made. `canonical` is
+    /// a curated meat/produce alias lookup (no GTIN, but a narrower search key
+    /// than the raw description) — still `approx` confidence, same as `desc`.
     ///
     /// Defaulted rather than required, and defaulted to the *cautious* pair
     /// with [confidence]: a response missing these must never read as an exact

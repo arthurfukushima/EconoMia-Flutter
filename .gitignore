@@ -48,3 +48,12 @@ app.*.map.json
 
 # Scratch renders from test/screenshots.dart (no device on this machine)
 test/shots/
+
+# Per-machine config overrides (backend host, timeouts, request pacing).
+# The committed defaults live in assets/config/app_config.json; copy
+# app_config.local.example.json to app_config.local.json to override them
+# locally. See lib/core/app_config.dart.
+assets/config/app_config.local.json
+
+# Firebase app config — per-developer Firebase project, not committed.
+android/app/google-services.json

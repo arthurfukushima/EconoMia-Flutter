@@ -7,7 +7,30 @@ A Brazilian grocery-savings app: scan the QR on an NFC-e cupom fiscal, see where
 - **State management:** Riverpod
 - **Navigation:** go_router (`StatefulShellRoute.indexedStack` for per-tab state)
 - **Persistence:** sembast (IndexedDB equivalent) + shared_preferences
-- **Backend:** three deployed Vercel functions at `https://econo-mia.vercel.app`
+- **Backend:** deployed Vercel functions; the host is **configured, not hardcoded** — see [Configuration](#configuration)
+
+## Configuration
+
+Hosts, timeouts and request pacing come from JSON, so different people can point the same
+checkout at different backends:
+
+| File | Committed? | Role |
+|---|---|---|
+| `assets/config/app_config.json` | yes | defaults everyone gets (`econo-mia-hugo.vercel.app`) |
+| `assets/config/app_config.local.json` | no (gitignored) | your machine's overrides |
+
+To point your build at a different backend:
+
+```bash
+cp assets/config/app_config.local.example.json assets/config/app_config.local.json
+# edit api.baseUrl, then rebuild — assets are bundled at build time
+```
+
+The local file is merged over the base one section at a time, so it only names what differs
+— usually just `{"api": {"baseUrl": "…"}}`. Typed by [`lib/core/app_config.dart`](lib/core/app_config.dart)
+and read through `appConfigProvider`; every field has a compile-time default, so a missing
+file is fine. Also configurable: Menor Preço and Open Food Facts endpoints, the maps-link
+template, request concurrency, and the store-discovery seed terms.
 
 ## Working structure
 
@@ -31,7 +54,8 @@ lib/
     fonts.dart                Fredoka / Baloo 2 / Nunito via FontVariation
 
   core/
-    api_client.dart           base URL, HTTP, error mapping
+    app_config.dart           JSON-loaded hosts/timeouts/pacing (+ local override)
+    api_client.dart           HTTP (GET/POST/external), error mapping
     pooled.dart               bounded-concurrency request pool
     money.dart                parseBRL / reaisToCents / formatBRL
     text.dart                 normalize / distinctiveStoreTokens
@@ -42,7 +66,9 @@ lib/
       receipt.dart            the core domain model
       offer.dart precos.dart  pricing response shapes
       [others]                app_location, list_item, quest_state, nutrition
-    economia_api.dart         /api/cep · /api/nfce · /api/precos
+    economia_api.dart         /api/cep · /api/nfce · /api/precos · /api/suggest
+                              · /api/catalog, plus the device-side Menor Preço
+                              fetch /api/precos asks for on a cache miss
     off_api.dart              Open Food Facts (direct client call)
     receipt_repository.dart   sembast receipts + offers
     prefs.dart                shared_preferences scalars
@@ -70,6 +96,7 @@ lib/
 assets/
   fonts/                      Fredoka.ttf, Baloo2.ttf, Nunito.ttf (variable)
   img/                        mia_logo.png
+  config/                     app_config.json + .local.example.json (see above)
 
 test/
   shell_test.dart             shell navigation smoke tests (always run)

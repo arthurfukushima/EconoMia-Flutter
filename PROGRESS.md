@@ -101,7 +101,29 @@ mid-session — no new session needed.
 
 ---
 
-_Updated 2026-07-26 (Phase 14) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
+---
+
+## Backend-integration port (out of band, 2026-07-26)
+
+Not a numbered phase — this pulled the React repo's `feature/backend-integration`
+work across, plus the client features that shipped with it.
+
+| Piece | Notes |
+|---|---|
+| `/api/precos` two-step protocol | GET → `{needsFetch}` → **device** fetches Menor Preço → POST back. The backend never fetches it: a serverless egress IP is fed fabricated decoy data (garbled names, non-PR states), which it rejects as `produtos_implausible`. `precos_protocol_test.dart` pins the whole dance |
+| CORS + deploy | Added `Access-Control-Allow-Origin`/`OPTIONS` to all five functions in the backend repo; prod was also failing to build on a stale Vercel cache. Redeployed to `econo-mia-hugo.vercel.app` — the bare `econo-mia.vercel.app` is a **different, inaccessible account** |
+| `AppConfig` | Hosts/timeouts/pacing from `assets/config/app_config.json` + a gitignored `.local.json` override, so each dev points at their own backend. No hardcoded URLs left under `lib/` |
+| Buscar por nome | `/api/suggest` autocomplete, search history, option switcher; jumps to Produto on a definite GTIN match |
+| Catálogo | `/api/catalog` — a market's whole cached assortment, its own market picker, category chips, sort, rank line, cheapness badge, add-to-list |
+| Multi-list | Named lists with a one-way migration off the flat `economia.shoppingList` key; per-list items and store pick. `listas_test.dart` pins the migration, CRUD and the self-heals |
+| Parser | Bullets/numbering/NBSP stripped off pasted lines; names capitalised |
+| `StoreRow` | Two-line store card for "N mercados" lists — `OfferSpan` wrapped to three lines there |
+
+**Still unported, deliberately:** Tendências (Phase 15) and Mia Points/Missões
+(Phase 13) exist in the reference but are their own planned phases with their
+own specs — not backend-integration work.
+
+_Updated 2026-07-26 (backend-integration port) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
 
 <!-- Still left for later from Phase 1, deliberately: the Missões model
      (phase 13 defines its own shape) and `intl` (no date is formatted yet).

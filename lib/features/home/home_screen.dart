@@ -254,12 +254,28 @@ class _AtalhosGrid extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        _Tile(
-          emoji: '🛍️',
-          tint: sa.paper2,
-          label: 'Loja da Mia',
-          meta: 'Em breve · troque seus pontos',
-          onTap: null,
+        Row(
+          children: [
+            Expanded(
+              child: _Tile(
+                emoji: '🗂️',
+                tint: sa.tintGreen,
+                label: 'Catálogo',
+                meta: 'Produtos por mercado',
+                onTap: () => context.push('/catalogo'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _Tile(
+                emoji: '🛍️',
+                tint: sa.paper2,
+                label: 'Loja da Mia',
+                meta: 'Em breve · pontos',
+                onTap: null,
+              ),
+            ),
+          ],
         ),
       ],
     );
