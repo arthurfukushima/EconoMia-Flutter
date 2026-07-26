@@ -1,6 +1,6 @@
 # EconoMia — Build Progress
 
-**11 / 17 phases**  ▓▓▓▓▓▓▓▓▓▓▓░░░░░░  65%
+**12 / 17 phases**  ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░  71%
 
 Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 
@@ -29,7 +29,7 @@ Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 | # | Phase | Status | Model | Notes |
 |---|-------|--------|-------|-------|
 | 7 | Home hero | ✅ done | Sonnet | `insights.dart aggregate()` (savings + annual projection, ≥2 priced notes needed); hero's real and onboarding states, framed as opportunity never "already saved" |
-| 8 | Home shortcuts | ✅ done | Sonnet | Atalhos 2×2 grid (Ofertas/Notas wired to real counts, Lista/Mercado static until their phases land) + disabled "Loja da Mia" row; Dica da Mia reads `tendencias.dart` for today's weekday, `−X%` badge, learning-nudge fallback |
+| 8 | Home shortcuts | ✅ done | Sonnet | Atalhos 2×2 grid (Ofertas/Notas wired to real counts; Lista wired in Phase 12, Mercado static until its phase lands) + disabled "Loja da Mia" row; Dica da Mia reads `tendencias.dart` for today's weekday, `−X%` badge, learning-nudge fallback |
 
 ## Remaining features
 
@@ -38,7 +38,7 @@ Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 | 9 | Produto | ✅ done | Sonnet | `/produto/:gtin` off the GTIN path of `/api/precos`; price range + cheapest + nearby-store list, "escanear outro", collapsible `RawData` JSON inspector; `CatChip` generalised off `ReceiptItem` to description+ncm, `_Card` promoted to shared `CardList` (now used by Receipt and Produto) |
 | 10 | Mercado | ✅ done | Sonnet | Store picker seeded from staple terms + live name-search, remembers the chosen market (`economia.currentStore`); embedded EAN scanner re-arms after each check; `compareHere`'s four statuses (no-offers/not-carried/here-cheapest/cheaper-elsewhere) and the trip summary. No shot in `test/screenshots.dart` — the embedded camera calls `MobileScannerController.start()` on every mount and throws under the test binding's unregistered platform channel, same limit as Phase 3's `ScanScreen`; verified via `mercado_test.dart` + `flutter analyze` instead |
 | 11 | Nutrição | ✅ done | Sonnet | `off_api.dart` (client-direct, own tiny error contract, never throws) + shared `NutritionBody`/`NutritionPanel`; always-visible section on Produto (independent of the price lookup, per the reference), collapsible on Mercado's result cards; Nutri-Score/NOVA badges keep their official colours outside `SaColors` on purpose |
-| 12 | Lista de Compras | ⬜ todo | **Opus** | Free-text parser, 12h cache, market ranking |
+| 12 | Lista de Compras | ✅ done | **Opus** | `lista_parse.dart` (quantity prefixes; g/ml → `un`, never a per-KG search) + `domain/lista.dart` (`isStale`, `activeOption`, `marketRanking`, `basketAt`); 12h cache where a failed fetch is skipped entirely, so old prices **and** old `pricedAt` survive and the item stays due — `lista_test.dart` pins that from both the state and the disk. Product-option switching, store basket, coverage-first market ranking. `mergeStores` graduated to `domain/stores.dart` and Mercado's picker to `widgets/store_picker.dart` (now shared, per §1) |
 | 13 | Gamification | ⬜ todo | **Opus** | Mia Points + Missões (needs events from 2, 3, 9, 10, 12) |
 | 14 | Resumo | ⬜ todo | Sonnet | Spending breakdown, pantry champions |
 | 15 | Tendências | ⬜ todo | Sonnet | Best weekday per category |
@@ -101,9 +101,9 @@ mid-session — no new session needed.
 
 ---
 
-_Updated 2026-07-26 · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
+_Updated 2026-07-26 (Phase 12) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
 
-<!-- Phase 1 left for later, deliberately: models for Lista, Missões and
-     Nutrição (phases 11–13 define their own shape), `priceItems` orchestration
-     (phase 12), and `intl` (no date is formatted yet). -->
+<!-- Still left for later from Phase 1, deliberately: the Missões model
+     (phase 13 defines its own shape) and `intl` (no date is formatted yet).
+     Lista's model and its pricing orchestration landed with phase 12. -->
 

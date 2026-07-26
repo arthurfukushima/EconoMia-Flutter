@@ -1,5 +1,6 @@
 import 'package:economia/data/models/app_location.dart';
 import 'package:economia/data/models/precos.dart';
+import 'package:economia/domain/stores.dart';
 import 'package:economia/features/mercado/mercado_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 

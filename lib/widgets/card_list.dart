@@ -13,11 +13,15 @@ class CardList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sa = Theme.of(context).sa;
-    return Container(
-      decoration: BoxDecoration(
-        color: sa.paper,
+    // A Material, not a DecoratedBox: rows carry ListTiles and ExpansionTiles
+    // (the "trocar produto" and nutrition collapsibles), and those paint their
+    // background and ink on the nearest Material ancestor — a coloured box in
+    // between would swallow both.
+    return Material(
+      color: sa.paper,
+      shape: RoundedRectangleBorder(
         borderRadius: SaRadius.mdAll,
-        border: Border.all(color: sa.stroke, width: 1.5),
+        side: BorderSide(color: sa.stroke, width: 1.5),
       ),
       child: Column(
         children: [

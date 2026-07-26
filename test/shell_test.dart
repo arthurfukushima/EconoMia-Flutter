@@ -56,7 +56,8 @@ void main() {
 
     await tester.tap(tab('Lista'));
     await tester.pumpAndSettle();
-    expect(find.text('Lista de Compras'), findsOneWidget);
+    expect(find.text('Ex: 4x Tomates, 1.5kg Carne, Toddy…'), findsOneWidget);
+    expect(find.textContaining('Sua lista está vazia'), findsOneWidget);
 
     await tester.tap(tab('Início'));
     await tester.pumpAndSettle();
