@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'features/history/history_screen.dart';
+import 'features/home/home_screen.dart';
+import 'features/mercado/mercado_screen.dart';
+import 'features/produto/produto_screen.dart';
 import 'features/receipt/receipt_screen.dart';
 import 'features/scan/scan_mode.dart';
 import 'features/scan/scan_screen.dart';
@@ -26,22 +30,14 @@ final router = GoRouter(
           routes: [
             GoRoute(
               path: '/',
-              builder: (_, _) => const PhasePlaceholder(
-                title: 'Início',
-                phase: 7,
-                summary: 'A casa da Mia — quanto dá pra economizar, atalhos e a dica do dia.',
-              ),
+              builder: (_, _) => const HomeScreen(),
               routes: [
                 // Nested under Home so a back gesture returns to the tile that
                 // opened it, but rendered above the shell (see parentNavigatorKey).
                 GoRoute(
                   path: 'notas',
                   parentNavigatorKey: _rootKey,
-                  builder: (_, _) => const PhasePlaceholder(
-                    title: 'Minhas Notas',
-                    phase: 6,
-                    summary: 'Suas notas escaneadas, com a economia de cada uma.',
-                  ),
+                  builder: (_, _) => const HistoryScreen(),
                   routes: [
                     GoRoute(
                       path: ':accessKey',
@@ -54,11 +50,7 @@ final router = GoRouter(
                 GoRoute(
                   path: 'mercado',
                   parentNavigatorKey: _rootKey,
-                  builder: (_, _) => const PhasePlaceholder(
-                    title: 'No mercado',
-                    phase: 10,
-                    summary: 'Escaneie as prateleiras e compare com os mercados vizinhos.',
-                  ),
+                  builder: (_, _) => const MercadoScreen(),
                 ),
               ],
             ),
@@ -113,11 +105,7 @@ final router = GoRouter(
     GoRoute(
       path: '/produto/:gtin',
       parentNavigatorKey: _rootKey,
-      builder: (_, _) => const PhasePlaceholder(
-        title: 'Produto',
-        phase: 9,
-        summary: 'A faixa de preço na sua região e as lojas mais próximas.',
-      ),
+      builder: (_, state) => ProdutoScreen(gtin: state.pathParameters['gtin']!),
     ),
   ],
 );

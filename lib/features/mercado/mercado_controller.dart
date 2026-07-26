@@ -1,0 +1,40 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/economia_api.dart';
+import '../../data/models/app_location.dart';
+import '../../data/models/precos.dart';
+import '../location/location_controller.dart';
+
+/// Seeds the "which market am I in?" picker before any product has been
+/// scanned. Recomputes whenever the location changes — a CEP set after
+/// landing on the screen re-seeds without a manual retry, same pattern as
+/// [produtoProvider].
+final mercadoSeedProvider = FutureProvider.autoDispose<List<Offer>>((ref) async {
+  final location = ref.watch(locationControllerProvider);
+  if (location == null) return const [];
+  return ref.watch(economiaApiProvider).nearbyStores(location);
+});
+
+/// Merges a newly-seen store list into an existing one: dedupe by `cod`, keep
+/// nearest-first. Used both to fold a scan's stores into the picker and to
+/// union the seed pages.
+List<Offer> mergeStores(List<Offer> list, List<Offer> incoming) {
+  final byCod = {for (final s in list) if (s.cod != null) s.cod!: s};
+  for (final s in incoming) {
+    if (s.cod != null) byCod.putIfAbsent(s.cod!, () => s);
+  }
+  final merged = byCod.values.toList()
+    ..sort((a, b) => (a.km ?? double.infinity).compareTo(b.km ?? double.infinity));
+  return merged;
+}
+
+/// The store to assume the user is standing in until they say otherwise. A
+/// precise (GPS) fix is authoritative — it *is* which store you're in, so it
+/// wins even over a previously persisted pick. Otherwise the persisted pick
+/// stands if it's still among the known [stores]; failing that, nearest.
+String? defaultStoreCod(AppLocation location, List<Offer> stores, String? saved) {
+  if (stores.isEmpty) return null;
+  if (location.precise) return stores.first.cod;
+  if (saved != null && stores.any((s) => s.cod == saved)) return saved;
+  return stores.first.cod;
+}

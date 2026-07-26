@@ -1,9 +1,11 @@
 import 'package:economia/app.dart';
 import 'package:economia/data/prefs.dart';
+import 'package:economia/data/receipt_repository.dart';
 import 'package:economia/router.dart';
 import 'package:economia/widgets/bottom_nav.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sembast/sembast_memory.dart' show newDatabaseFactoryMemory;
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -13,8 +15,14 @@ void main() {
   Future<void> bootToHome(WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = Prefs(await SharedPreferences.getInstance());
+    final repo = await tester.runAsync(
+      () async => ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('shell_test.db')),
+    );
     await tester.pumpWidget(ProviderScope(
-      overrides: [prefsProvider.overrideWithValue(prefs)],
+      overrides: [
+        prefsProvider.overrideWithValue(prefs),
+        receiptRepositoryProvider.overrideWithValue(repo!),
+      ],
       child: const EconoMiaApp(),
     ));
     // Sit through the splash animation, which hands over to Home when it ends.
@@ -28,8 +36,9 @@ void main() {
 
   testWidgets('splash hands over to Início', (tester) async {
     await bootToHome(tester);
+    // No receipts in this repo, so Home's hero is in its onboarding state.
     expect(
-      find.text('A casa da Mia — quanto dá pra economizar, atalhos e a dica do dia.'),
+      find.text('Escaneie sua primeira nota e eu começo a caçar economia pra você.'),
       findsOneWidget,
     );
   });
@@ -51,7 +60,7 @@ void main() {
 
     await tester.tap(tab('Início'));
     await tester.pumpAndSettle();
-    expect(find.text('A casa da Mia — quanto dá pra economizar, atalhos e a dica do dia.'), findsOneWidget);
+    expect(find.text('Escaneie sua primeira nota e eu começo a caçar economia pra você.'), findsOneWidget);
   });
 
   testWidgets('the scan button asks which kind of scan', (tester) async {
@@ -76,7 +85,7 @@ void main() {
     router.push('/notas');
     await tester.pumpAndSettle();
 
-    expect(find.text('Suas notas escaneadas, com a economia de cada uma.'), findsOneWidget);
+    expect(find.text('Nenhuma nota ainda'), findsOneWidget);
     expect(find.byType(BottomNav), findsNothing, reason: 'the bar belongs to the shell only');
   });
 }

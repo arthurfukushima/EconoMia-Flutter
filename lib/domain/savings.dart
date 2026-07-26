@@ -89,3 +89,59 @@ Savings computeSavings(List<ReceiptItem> items) {
 /// Potential savings as a whole percent of the receipt total.
 int savedPct(int savedCents, int totalCents) =>
     totalCents > 0 ? (savedCents / totalCents * 100).round() : 0;
+
+/// The four honest verdicts [compareHere] can reach for one scanned product.
+enum CompareStatus {
+  /// Nothing priced nearby for this code at all.
+  noOffers,
+
+  /// Priced nearby, but not at the store the user says they're standing in.
+  notCarried,
+
+  /// The store here ties or beats every nearby offer.
+  hereCheapest,
+
+  /// Cheaper somewhere else nearby — [CompareResult.savingsCents] is the gap.
+  cheaperElsewhere,
+}
+
+typedef CompareResult = ({
+  CompareStatus status,
+  Offer? here,
+  Offer? cheapest,
+  Offer? cheaper,
+  int savingsCents,
+});
+
+/// One scanned product, judged against the store the user says they're
+/// standing in (by [cod]).
+///
+/// [data] is a [Precos] from the GTIN lookup path. Identifying "here" always
+/// goes through [Precos.stores], never [Precos.cheapest] — the backend omits
+/// `cod` on `cheapest` (see [Offer]), so a `here.cod == cheapest.cod` check
+/// would be comparing against null. It would also be redundant: if here is
+/// genuinely the cheapest, its price already equals `cheapest.priceCents`,
+/// so the `savingsCents <= 0` branch below catches it regardless.
+CompareResult compareHere(Precos data, String? cod) {
+  final cheapest = data.cheapest;
+  if (data.nOffers <= 0) {
+    return (status: CompareStatus.noOffers, here: null, cheapest: cheapest, cheaper: null, savingsCents: 0);
+  }
+
+  Offer? here;
+  for (final s in data.stores) {
+    if (s.cod == cod) {
+      here = s;
+      break;
+    }
+  }
+  if (here == null) {
+    return (status: CompareStatus.notCarried, here: null, cheapest: cheapest, cheaper: cheapest, savingsCents: 0);
+  }
+
+  final savingsCents = cheapest != null ? here.priceCents - cheapest.priceCents : 0;
+  if (savingsCents <= 0) {
+    return (status: CompareStatus.hereCheapest, here: here, cheapest: cheapest, cheaper: null, savingsCents: 0);
+  }
+  return (status: CompareStatus.cheaperElsewhere, here: here, cheapest: cheapest, cheaper: cheapest, savingsCents: savingsCents);
+}

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api_client.dart';
+import '../core/pooled.dart';
 import 'models/app_location.dart';
 import 'models/precos.dart';
 import 'models/receipt.dart';
@@ -104,5 +105,52 @@ class EconomiaApi {
       for (final s in (json['stores'] as List? ?? const []))
         Offer.fromJson(s as Map<String, dynamic>),
     ];
+  }
+
+  /// Everyday staple terms whose stores[] union stands in for a store
+  /// directory Menor Preço doesn't have. One term alone misses real nearby
+  /// markets — it returns only a ~50-offer relevance page, so a store like a
+  /// small mercado can be absent from "arroz" yet present in "farinha".
+  static const _seedStaples = ['arroz', 'farinha', 'leite', 'cafe', 'detergente'];
+
+  /// `/api/precos` seeded from [_seedStaples] (default, description path) —
+  /// the nearby markets to pick from before any product has been scanned,
+  /// nearest-first. Reads each term's `stores[]` (best price per store for
+  /// that product), the same field a receipt line's pricing call gets; it
+  /// isn't `mode=stores` name-search, which would need a store name to
+  /// search *for* rather than discover one.
+  ///
+  /// A precise (GPS) fix narrows the radius so the relevance page isn't
+  /// saturated by a whole city — nearby markets surface instead of being
+  /// buried under it.
+  /// ponytail: 2km assumes under ~50 offers/term inside it; widen if a dense
+  /// area still misses stores.
+  Future<List<Offer>> nearbyStores(AppLocation location) async {
+    final raio = location.precise ? 2 : location.raio;
+    final pages = await pooled(_seedStaples, 3, (term) async {
+      try {
+        final json = await _client.getJson('/api/precos', {
+          'q': term,
+          'local': '${location.lat},${location.lng}',
+          'raio': '$raio',
+        });
+        return [
+          for (final s in (json['stores'] as List? ?? const []))
+            Offer.fromJson(s as Map<String, dynamic>),
+        ];
+      } on ApiException {
+        return const <Offer>[];
+      }
+    });
+
+    final byCod = <String, Offer>{};
+    for (final page in pages) {
+      for (final s in page) {
+        if (s.cod != null) byCod.putIfAbsent(s.cod!, () => s);
+      }
+    }
+    final list = byCod.values.toList()
+      ..sort((a, b) => (a.km ?? double.infinity).compareTo(b.km ?? double.infinity));
+    return list;
   }
 }

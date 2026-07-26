@@ -10,6 +10,7 @@ import '../../domain/basket.dart';
 import '../../domain/savings.dart';
 import '../../domain/tendencias.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/card_list.dart';
 import '../../widgets/cat_chip.dart';
 import '../../widgets/offer_span.dart';
 import '../location/location_controller.dart';
@@ -166,7 +167,7 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
                 style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
               )
             else
-              _Card(children: [for (final c in savings.compared) _ComparedRow(compared: c)]),
+              CardList(children: [for (final c in savings.compared) _ComparedRow(compared: c)]),
             const SizedBox(height: 10),
             Text(
               'Preços de notas fiscais recentes na sua região. Itens “aprox.” são '
@@ -177,7 +178,7 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
               const SizedBox(height: 18),
               Text('Não comparados (${savings.uncompared.length})', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
-              _Card(
+              CardList(
                 children: [
                   for (final item in savings.uncompared)
                     _PlainRow(item: item, trailing: 'sem preço próximo'),
@@ -188,7 +189,7 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
         ] else ...[
           Text('Itens da nota (${items.length})', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
-          _Card(
+          CardList(
             children: [
               for (final item in items)
                 _PlainRow(item: item, trailing: formatBRL(item.unitPriceCents)),
@@ -320,36 +321,6 @@ class _Summary extends StatelessWidget {
   }
 }
 
-/// The bordered list every section on this screen is drawn in.
-class _Card extends StatelessWidget {
-  const _Card({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final sa = Theme.of(context).sa;
-    return Container(
-      decoration: BoxDecoration(
-        color: sa.paper,
-        borderRadius: SaRadius.mdAll,
-        border: Border.all(color: sa.stroke, width: 1.5),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) Divider(height: 1, color: sa.stroke),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: children[i],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 /// One item that is cheaper somewhere else: what you paid, where it is cheaper,
 /// and the difference.
 class _ComparedRow extends StatelessWidget {
@@ -367,7 +338,10 @@ class _ComparedRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(padding: const EdgeInsets.only(top: 1), child: CatChip(item: item)),
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: CatChip(description: item.description, ncm: item.ncm),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -420,7 +394,7 @@ class _PlainRow extends StatelessWidget {
 
     return Row(
       children: [
-        CatChip(item: item),
+        CatChip(description: item.description, ncm: item.ncm),
         const SizedBox(width: 8),
         Expanded(child: Text(item.description, style: theme.textTheme.bodyMedium)),
         const SizedBox(width: 8),
@@ -773,7 +747,7 @@ class _StoreBasket extends StatelessWidget {
             style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
           )
         else
-          _Card(children: [for (final l in covered) _BasketRow(line: l)]),
+          CardList(children: [for (final l in covered) _BasketRow(line: l)]),
         const SizedBox(height: 10),
         Text(
           'Preços de notas fiscais recentes nesta loja. Itens sem preço recente aparecem abaixo.',
@@ -783,7 +757,7 @@ class _StoreBasket extends StatelessWidget {
           const SizedBox(height: 18),
           Text('Não vendidos nesta loja (${missing.length})', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
-          _Card(
+          CardList(
             children: [
               for (final l in missing) _PlainRow(item: l.item, trailing: 'sem preço recente aqui'),
             ],
@@ -811,7 +785,10 @@ class _BasketRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(padding: const EdgeInsets.only(top: 1), child: CatChip(item: item)),
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: CatChip(description: item.description, ncm: item.ncm),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Column(

@@ -193,6 +193,49 @@ void main() {
       expect(await api.searchStores('m', const AppLocation(lat: 0, lng: 0)), isEmpty);
       expect(seen, isEmpty);
     });
+
+    test('nearbyStores unions every staple term, deduped, nearest-first', () async {
+      final bodies = {
+        'arroz': '{"stores":[{"cod":"1","store":"CONDOR","km":2.4},{"cod":"2","store":"MUFFATO","km":1.1}]}',
+        'farinha': '{"stores":[{"cod":"2","store":"MUFFATO","km":1.1},{"cod":"3","store":"SANTAREM","km":3.8}]}',
+        'leite': '{"stores":[]}',
+        'cafe': '{"error":"menorpreco_failed"}',
+        'detergente': '{"stores":[]}',
+      };
+      final seen = <Uri>[];
+      final api = EconomiaApi(ApiClient(
+        client: MockClient((req) async {
+          seen.add(req.url);
+          final body = bodies[req.url.queryParameters['q']]!;
+          return http.Response.bytes(
+            utf8.encode(body),
+            body.contains('error') ? 502 : 200,
+          );
+        }),
+      ));
+
+      final stores = await api.nearbyStores(
+        const AppLocation(lat: -23.31, lng: -51.16, raio: 15),
+      );
+
+      expect(seen, hasLength(5), reason: 'one call per staple term');
+      expect(stores.map((s) => s.cod), ['2', '1', '3'], reason: 'deduped, nearest-first');
+      expect(seen.every((u) => u.queryParameters['raio'] == '15'), isTrue);
+    });
+
+    test('a precise (GPS) fix narrows the seeding radius to 2km', () async {
+      final seen = <Uri>[];
+      final api = EconomiaApi(ApiClient(
+        client: MockClient((req) async {
+          seen.add(req.url);
+          return http.Response.bytes(utf8.encode('{"stores":[]}'), 200);
+        }),
+      ));
+
+      await api.nearbyStores(const AppLocation(lat: 0, lng: 0, raio: 50, precise: true));
+
+      expect(seen.every((u) => u.queryParameters['raio'] == '2'), isTrue);
+    });
   });
 
   group('repository', () {

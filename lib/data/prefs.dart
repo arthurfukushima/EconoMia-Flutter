@@ -25,6 +25,7 @@ class Prefs {
   final SharedPreferences _prefs;
 
   static const _locationKey = 'economia.location';
+  static const _currentStoreKey = 'economia.currentStore';
 
   /// The saved search centre, or null when the user has never set one — which
   /// is a real state the UI has copy for, not an error.
@@ -42,4 +43,12 @@ class Prefs {
 
   Future<void> setLocation(AppLocation location) =>
       _prefs.setString(_locationKey, jsonEncode(location.toJson()));
+
+  /// The market the user last said they were standing in, so returning to
+  /// Mercado remembers it across app restarts.
+  String? get currentStore => _prefs.getString(_currentStoreKey);
+
+  Future<void> setCurrentStore(String? cod) => cod == null
+      ? _prefs.remove(_currentStoreKey)
+      : _prefs.setString(_currentStoreKey, cod);
 }

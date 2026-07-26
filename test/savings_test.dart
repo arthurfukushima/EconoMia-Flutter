@@ -133,6 +133,57 @@ void main() {
     });
   });
 
+  group('compareHere', () {
+    const cheapest = Offer(priceCents: 398, store: 'CONDOR');
+
+    test('no-offers: nothing priced nearby for this code at all', () {
+      final r = compareHere(const Precos(nOffers: 0), '1');
+      expect(r.status, CompareStatus.noOffers);
+      expect(r.here, isNull);
+      expect(r.savingsCents, 0);
+    });
+
+    test('not-carried: priced nearby, but not at the picked store', () {
+      final r = compareHere(
+        const Precos(nOffers: 3, cheapest: cheapest, stores: [Offer(cod: '2', priceCents: 410)]),
+        '1',
+      );
+      expect(r.status, CompareStatus.notCarried);
+      expect(r.here, isNull);
+      expect(r.cheaper, cheapest, reason: 'the honest "buy it there instead" pointer');
+      expect(r.savingsCents, 0);
+    });
+
+    test('here-cheapest: the picked store ties or beats every nearby offer', () {
+      final r = compareHere(
+        Precos(nOffers: 2, cheapest: cheapest, stores: [const Offer(cod: '1', priceCents: 398)]),
+        '1',
+      );
+      expect(r.status, CompareStatus.hereCheapest);
+      expect(r.cheaper, isNull);
+      expect(r.savingsCents, 0);
+    });
+
+    test('cheaper-elsewhere: the gap is here minus cheapest, and positive', () {
+      final r = compareHere(
+        Precos(nOffers: 2, cheapest: cheapest, stores: [const Offer(cod: '1', priceCents: 450)]),
+        '1',
+      );
+      expect(r.status, CompareStatus.cheaperElsewhere);
+      expect(r.here!.priceCents, 450);
+      expect(r.cheaper, cheapest);
+      expect(r.savingsCents, 52);
+    });
+
+    test('a null cod (no store picked yet) never matches a real store', () {
+      final r = compareHere(
+        const Precos(nOffers: 1, stores: [Offer(cod: '1', priceCents: 450)]),
+        null,
+      );
+      expect(r.status, CompareStatus.notCarried);
+    });
+  });
+
   group('enrichReceipt', () {
     /// An API whose `/api/precos` answers from [bodies], keyed by the `q` it was
     /// asked for, and that records every request.
