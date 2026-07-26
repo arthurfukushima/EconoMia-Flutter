@@ -340,10 +340,16 @@ class _AddForm extends StatelessWidget {
         Expanded(
           child: TextField(
             controller: controller,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => onSubmit?.call(),
+            // A single-line field (maxLines: 1) discards every newline in
+            // its value, typed or pasted — so pasting a multi-line list out
+            // of Notes/WhatsApp would silently collapse into one run-on
+            // item. Unbounded so those newlines survive into `_add()`,
+            // which already splits on them (`parseInput`); submission stays
+            // on the button, not Enter, since Enter now means "new line".
+            maxLines: null,
+            keyboardType: TextInputType.multiline,
             decoration: const InputDecoration(
-              hintText: 'Ex: 4x Tomates, 1.5kg Carne, Toddy…',
+              hintText: 'Ex: 4x Tomates, 1.5kg Carne, Toddy… (ou cole uma lista)',
               isDense: true,
             ),
           ),
@@ -490,12 +496,32 @@ class _ItemRow extends ConsumerWidget {
           _Collapse(
             title: 'trocar produto (${options.length} opções)',
             children: [
+              // Tier 1 (the literal product typed) and tier 2 (formulation/
+              // packaging variants — Zero, Retornável, ...) as two groups, not
+              // one flat list — a variant must stay reachable without ever
+              // competing visually with the literal match. The backend
+              // already sorts tier 1 before tier 2, so this only draws the
+              // split; it doesn't re-order anything.
               for (final o in options)
-                _OptionTile(
-                  option: o,
-                  selected: o.key == active?.key,
-                  onTap: () => controller.choose(item.id, o.key),
+                if (o.tier != 2)
+                  _OptionTile(
+                    option: o,
+                    selected: o.key == active?.key,
+                    onTap: () => controller.choose(item.id, o.key),
+                  ),
+              if (options.any((o) => o.tier == 2)) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text('variações', style: Theme.of(context).textTheme.labelMedium!.copyWith(color: Theme.of(context).sa.muted)),
                 ),
+                for (final o in options)
+                  if (o.tier == 2)
+                    _OptionTile(
+                      option: o,
+                      selected: o.key == active?.key,
+                      onTap: () => controller.choose(item.id, o.key),
+                    ),
+              ],
             ],
           ),
         if ((active?.stores.length ?? 0) > 1)
@@ -505,7 +531,7 @@ class _ItemRow extends ConsumerWidget {
               for (final s in active.stores)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: OfferSpan(offer: s),
+                  child: StoreRow(offer: s),
                 ),
             ],
           ),

@@ -305,10 +305,21 @@ class _ResultSection extends StatelessWidget {
           const SizedBox(height: 14),
           Text('trocar produto (${data.options.length} opções)', style: theme.textTheme.titleSmall),
           const SizedBox(height: 6),
+          // Tier 1 (the literal product typed) and tier 2 (formulation/
+          // packaging variants — Zero, Retornável, ...) as two groups: a
+          // variant stays reachable without competing visually with the
+          // literal match. Already sorted tier-1-first by the backend.
           CardList(
             children: [
               for (final o in data.options)
-                _OptionRow(option: o, selected: o.key == active?.key, onTap: () => onSelectOption(o)),
+                if (o.tier != 2)
+                  _OptionRow(option: o, selected: o.key == active?.key, onTap: () => onSelectOption(o)),
+              if (data.options.any((o) => o.tier == 2)) ...[
+                Text('variações', style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+                for (final o in data.options)
+                  if (o.tier == 2)
+                    _OptionRow(option: o, selected: o.key == active?.key, onTap: () => onSelectOption(o)),
+              ],
             ],
           ),
         ],

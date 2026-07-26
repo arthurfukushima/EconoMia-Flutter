@@ -864,6 +864,7 @@ void main() {
           'name': 'TODDY ACHOCOLATADO 400G',
           'cheapest': {'priceCents': 899, 'store': 'CONDOR', 'bairro': 'Gleba Palhano', 'km': 2.4},
           'nStores': 3,
+          'tier': 1,
           'stores': [
             {'cod': '1', 'priceCents': 899, 'store': 'CONDOR', 'bairro': 'Gleba Palhano', 'km': 2.4},
           ],
@@ -873,6 +874,7 @@ void main() {
           'name': 'TODDY ZERO ACHOCOLATADO 380G',
           'cheapest': {'priceCents': 950, 'store': 'SUPER MUFFATO', 'bairro': 'Centro', 'km': 3.1},
           'nStores': 2,
+          'tier': 2,
         },
       ],
     });

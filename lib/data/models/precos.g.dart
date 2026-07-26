@@ -53,6 +53,7 @@ _ProductOption _$ProductOptionFromJson(Map<String, dynamic> json) =>
       nStores: (json['nStores'] as num?)?.toInt() ?? 0,
       nOffers: (json['nOffers'] as num?)?.toInt() ?? 0,
       ncm: json['ncm'] as String?,
+      tier: (json['tier'] as num?)?.toInt() ?? 1,
     );
 
 Map<String, dynamic> _$ProductOptionToJson(_ProductOption instance) =>
@@ -65,6 +66,7 @@ Map<String, dynamic> _$ProductOptionToJson(_ProductOption instance) =>
       'nStores': instance.nStores,
       'nOffers': instance.nOffers,
       'ncm': instance.ncm,
+      'tier': instance.tier,
     };
 
 _Precos _$PrecosFromJson(Map<String, dynamic> json) => _Precos(

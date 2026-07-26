@@ -71,6 +71,12 @@ abstract class ProductOption with _$ProductOption {
     @Default(0) int nStores,
     @Default(0) int nOffers,
     String? ncm,
+
+    /// `1` (the literal product asked for) | `2` (a formulation/packaging
+    /// variant the query didn't name — Zero, Retornável, …). The backend
+    /// already sorts tier 1 before tier 2, so this is only needed to draw the
+    /// "variações" split, not to re-sort.
+    @Default(1) int tier,
   }) = _ProductOption;
 
   factory ProductOption.fromJson(Map<String, dynamic> json) =>
