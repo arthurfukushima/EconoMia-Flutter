@@ -52,7 +52,11 @@ void main() {
 
     await tester.tap(tab('Resumo'));
     await tester.pumpAndSettle();
-    expect(find.text('Para onde vai seu dinheiro e onde dá pra economizar.'), findsOneWidget);
+    // No receipts in this repo — Resumo is in its <3-notes gate.
+    expect(
+      find.text('Com 3 ou mais compras eu começo a mostrar onde vai seu dinheiro e onde dá pra economizar.'),
+      findsOneWidget,
+    );
 
     await tester.tap(tab('Lista'));
     await tester.pumpAndSettle();

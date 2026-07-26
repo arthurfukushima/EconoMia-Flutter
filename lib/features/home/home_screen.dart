@@ -21,6 +21,10 @@ const _zeroInsights = (
   totalSpentCents: 0,
   notesCount: 0,
   pricedNotesCount: 0,
+  byCategory: <CategorySpend>[],
+  topItems: <ItemSummary>[],
+  byStore: <StoreVisit>[],
+  bestAlt: null,
 );
 
 /// "A casa da Mia" — the hub: greeting, savings hero, Atalhos shortcut grid

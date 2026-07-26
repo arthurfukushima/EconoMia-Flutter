@@ -7,6 +7,7 @@ import 'features/lista/lista_screen.dart';
 import 'features/mercado/mercado_screen.dart';
 import 'features/produto/produto_screen.dart';
 import 'features/receipt/receipt_screen.dart';
+import 'features/resumo/resumo_screen.dart';
 import 'features/scan/scan_mode.dart';
 import 'features/scan/scan_screen.dart';
 import 'features/splash/splash_screen.dart';
@@ -76,14 +77,7 @@ final router = GoRouter(
         ),
         StatefulShellBranch(
           routes: [
-            GoRoute(
-              path: '/resumo',
-              builder: (_, _) => const PhasePlaceholder(
-                title: 'Resumo',
-                phase: 14,
-                summary: 'Para onde vai seu dinheiro e onde dá pra economizar.',
-              ),
-            ),
+            GoRoute(path: '/resumo', builder: (_, _) => const ResumoScreen()),
           ],
         ),
       ],

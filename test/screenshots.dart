@@ -82,6 +82,7 @@ void main() {
     await tester.pumpAndSettle();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/scan_chooser.png'));
 
+    // No receipts in this repo — Resumo is in its <3-notes gate.
     router.go('/resumo');
     await tester.pumpAndSettle();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/resumo.png'));
@@ -394,6 +395,50 @@ void main() {
     await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -300));
     await tester.pumpAndSettle();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/home_atalhos_dica.png'));
+  });
+
+  // Phase 14: Resumo's populated state — hero, category spend bars, campeões
+  // da despensa, favourite market and the best-alternative-store tip. Needs
+  // >= 3 notes to clear the <3-notes gate; three copies of the priced sample,
+  // a week apart each, give real category and store variety with no new
+  // fixtures — CONDOR is cheaper than SUPER MUFFATO on most lines but dearer
+  // on two, so `bestAlt` has a real (not fabricated) store to point at.
+  testWidgets('shots — resumo, with data', (tester) async {
+    await _loadFonts();
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final a = pricedSample();
+    final b = a.copyWith(
+      accessKey: '41250712345678000190650010000123451987654398',
+      header: a.header.copyWith(purchasedAt: '14/07/2026 09:00:00'),
+    );
+    final c = a.copyWith(
+      accessKey: '41250712345678000190650010000123451987654397',
+      header: a.header.copyWith(purchasedAt: '07/07/2026 09:00:00'),
+    );
+
+    SharedPreferences.setMockInitialValues({});
+    final setUp = await tester.runAsync(() async {
+      final repo = ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('resumo_with_data.db'));
+      await repo.saveReceipt(a);
+      await repo.saveReceipt(b);
+      await repo.saveReceipt(c);
+      return (repo, Prefs(await SharedPreferences.getInstance()));
+    });
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        receiptRepositoryProvider.overrideWithValue(setUp!.$1),
+        prefsProvider.overrideWithValue(setUp.$2),
+      ],
+      child: const EconoMiaApp(),
+    ));
+
+    router.go('/resumo');
+    await tester.pumpAndSettle();
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/resumo_with_data.png'));
   });
 
   // Phase 5: the store picker opened, the category breakdown expanded, and —

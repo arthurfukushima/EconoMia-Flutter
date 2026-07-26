@@ -1,6 +1,6 @@
 # EconoMia — Build Progress
 
-**12 / 17 phases**  ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░  71%
+**14 / 17 phases**  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░  82%
 
 Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 
@@ -40,7 +40,7 @@ Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 | 11 | Nutrição | ✅ done | Sonnet | `off_api.dart` (client-direct, own tiny error contract, never throws) + shared `NutritionBody`/`NutritionPanel`; always-visible section on Produto (independent of the price lookup, per the reference), collapsible on Mercado's result cards; Nutri-Score/NOVA badges keep their official colours outside `SaColors` on purpose |
 | 12 | Lista de Compras | ✅ done | **Opus** | `lista_parse.dart` (quantity prefixes; g/ml → `un`, never a per-KG search) + `domain/lista.dart` (`isStale`, `activeOption`, `marketRanking`, `basketAt`); 12h cache where a failed fetch is skipped entirely, so old prices **and** old `pricedAt` survive and the item stays due — `lista_test.dart` pins that from both the state and the disk. Product-option switching, store basket, coverage-first market ranking. `mergeStores` graduated to `domain/stores.dart` and Mercado's picker to `widgets/store_picker.dart` (now shared, per §1) |
 | 13 | Gamification | ⬜ todo | **Opus** | Mia Points + Missões (needs events from 2, 3, 9, 10, 12) |
-| 14 | Resumo | ⬜ todo | Sonnet | Spending breakdown, pantry champions |
+| 14 | Resumo | ✅ done | Sonnet | `aggregate()` extended (byCategory, topItems, byStore, bestAlt) and shared with Home's hero rather than duplicated; <3-notes gate; category spend bars, campeões da despensa, favourite market, best-alternative-store tip (reusing `basket.dart`'s `storeOptions`) |
 | 15 | Tendências | ⬜ todo | Sonnet | Best weekday per category |
 | 16 | Polish | ⬜ todo | Sonnet | Motion, empty-state audit, semantics, icon + splash |
 
@@ -101,7 +101,7 @@ mid-session — no new session needed.
 
 ---
 
-_Updated 2026-07-26 (Phase 12) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
+_Updated 2026-07-26 (Phase 14) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
 
 <!-- Still left for later from Phase 1, deliberately: the Missões model
      (phase 13 defines its own shape) and `intl` (no date is formatted yet).
