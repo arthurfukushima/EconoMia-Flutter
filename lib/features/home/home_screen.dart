@@ -95,7 +95,7 @@ class _SavingsHero extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: sa.paper.withValues(alpha: 0.14), width: 1.5),
             ),
-            child: Image.asset('assets/img/mia_logo.png', fit: BoxFit.cover),
+            child: Image.asset('assets/img/mia_logo_android.png', fit: BoxFit.cover),
           ),
           const SizedBox(width: 14),
           Expanded(

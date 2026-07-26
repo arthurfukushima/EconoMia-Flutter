@@ -75,10 +75,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     children: [
                       Transform.scale(
                         scale: _logo.value,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(30),
-                          child: Image.asset('assets/img/mia_logo.png', width: 132, height: 132),
-                        ),
+                        child: Image.asset('assets/img/mia-icon.png', width: 132, height: 132),
                       ),
                       const SizedBox(height: 20),
                       Opacity(

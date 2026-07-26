@@ -113,7 +113,7 @@ class Prefs {
   /// Ids only have to be unique on this device, so a timestamp plus a random
   /// suffix does it — no uuid dependency for a local key.
   static String _newId() =>
-      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32).toRadixString(36)}';
+      '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(4294967296).toRadixString(36)}';
 
   /// Every list, creation order. Never empty after [initLists].
   List<ShoppingList> get lists => _readLists();

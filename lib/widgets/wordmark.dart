@@ -27,7 +27,7 @@ class Wordmark extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(fontSize * 0.37),
             child: Image.asset(
-              'assets/img/mia_logo.png',
+              'assets/img/mia_logo_android.png',
               width: fontSize * 1.67,
               height: fontSize * 1.67,
               fit: BoxFit.cover,
