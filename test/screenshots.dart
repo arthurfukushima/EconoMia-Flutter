@@ -13,11 +13,14 @@ import 'package:economia/core/api_client.dart';
 import 'package:economia/core/categoria.dart';
 import 'package:economia/data/economia_api.dart';
 import 'package:economia/data/models/app_location.dart';
+import 'package:economia/data/models/list_item.dart';
 import 'package:economia/data/models/precos.dart';
 import 'package:economia/data/models/receipt.dart';
 import 'package:economia/data/off_api.dart';
 import 'package:economia/data/prefs.dart';
 import 'package:economia/data/receipt_repository.dart';
+import 'package:economia/domain/lista_parse.dart';
+import 'package:economia/features/lista/lista_screen.dart';
 import 'package:economia/features/produto/produto_screen.dart';
 import 'package:economia/features/receipt/receipt_screen.dart';
 import 'package:economia/router.dart';
@@ -595,6 +598,169 @@ void main() {
 
     await tester.pumpAndSettle();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/produto.png'));
+  });
+
+  // Phase 12: Minha lista. Prices are seeded already-fresh (pricedAt = now,
+  // pricedCep = the saved CEP), so the mount pass finds nothing stale and no
+  // request is fired — the shot shows the cache-hit state, which is what
+  // opening this tab normally looks like.
+  List<ListItem> listaSample() {
+    const leite = Precos(
+      name: 'LEITE INTEGRAL ITALAC 1L',
+      cheapest: Offer(priceCents: 398, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4),
+      stores: [
+        Offer(cod: '1', priceCents: 398, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4),
+        Offer(cod: '2', priceCents: 410, store: 'SUPER MUFFATO', bairro: 'Centro', km: 1.1),
+      ],
+      nStores: 2,
+      nOffers: 7,
+    );
+    // A vague term with real candidates behind it — this is the row whose
+    // "trocar produto" collapsible the shot opens.
+    const carne = Precos(
+      name: 'CARNE MOIDA BOVINA KG',
+      options: [
+        ProductOption(
+          key: 'moida',
+          name: 'CARNE MOIDA BOVINA KG',
+          cheapest: Offer(priceCents: 2990, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4),
+          stores: [
+            Offer(cod: '1', priceCents: 2990, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4),
+            Offer(cod: '2', priceCents: 3190, store: 'SUPER MUFFATO', bairro: 'Centro', km: 1.1),
+          ],
+          nStores: 2,
+        ),
+        ProductOption(
+          key: 'seca',
+          name: 'CARNE SECA DIANTEIRA KG',
+          cheapest: Offer(priceCents: 4990, store: 'SUPER MUFFATO', bairro: 'Centro', km: 1.1),
+          stores: [Offer(cod: '2', priceCents: 4990, store: 'SUPER MUFFATO', bairro: 'Centro', km: 1.1)],
+          nStores: 1,
+        ),
+      ],
+    );
+    const banana = Precos(
+      name: 'BANANA NANICA KG',
+      cheapest: Offer(priceCents: 499, store: 'HORTIFRUTI SANTARÉM', bairro: 'Vila Casoni', km: 3.8),
+      stores: [Offer(cod: '3', priceCents: 499, store: 'HORTIFRUTI SANTARÉM', bairro: 'Vila Casoni', km: 3.8)],
+      nStores: 1,
+    );
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    ListItem fresh(String id, String raw, Precos? precos, {double qty = 1, String unit = 'un'}) {
+      final parsed = parseItem(raw);
+      return ListItem(
+        id: id,
+        raw: parsed.raw,
+        name: parsed.name,
+        qty: parsed.qty,
+        unit: parsed.unit,
+        precos: precos,
+        pricedAt: precos == null ? null : now,
+        pricedCep: precos == null ? null : '86010000',
+      );
+    }
+
+    return [
+      fresh('1', '6x Leite Integral', leite),
+      fresh('2', 'Carne', carne),
+      fresh('3', '1.5kg Banana', banana),
+      // Never successfully priced — the honest "preço indisponível" row, not a
+      // fabricated R$ 0,00.
+      fresh('4', '2x Detergente Ype', null),
+    ];
+  }
+
+  Future<void> listaShot(
+    WidgetTester tester,
+    String name, {
+    String? listStore,
+    Future<void> Function()? after,
+  }) async {
+    await _loadFonts();
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    SharedPreferences.setMockInitialValues({
+      'economia.location': jsonEncode(const AppLocation(
+        lat: -23.31,
+        lng: -51.16,
+        cep: '86010000',
+        city: 'Londrina',
+        state: 'Paraná',
+        raio: 15,
+      ).toJson()),
+      'economia.shoppingList': jsonEncode([for (final i in listaSample()) i.toJson()]),
+      'economia.listStore': ?listStore,
+    });
+    final prefs = Prefs(await SharedPreferences.getInstance());
+    final repo = await tester.runAsync(
+      () async => ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('$name.db')),
+    );
+    // Nothing is stale, so this is never called — it is here so that a mistake
+    // in that setup fails as a 502 banner instead of a real network call.
+    final api = EconomiaApi(ApiClient(
+      client: MockClient((_) async => http.Response.bytes(utf8.encode('{"error":"menorpreco_failed"}'), 502)),
+    ));
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        prefsProvider.overrideWithValue(prefs),
+        receiptRepositoryProvider.overrideWithValue(repo!),
+        economiaApiProvider.overrideWithValue(api),
+      ],
+      child: const EconoMiaApp(),
+    ));
+
+    router.go('/lista');
+    await tester.pumpAndSettle();
+    if (after != null) {
+      await after();
+      await tester.pumpAndSettle();
+    }
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('shots/$name.png'));
+  }
+
+  // Scroll a below-the-fold control into view *before* tapping it: `tap` on an
+  // off-screen widget aims at coordinates outside the viewport and hits
+  // whatever is actually painted there — the scan FAB, in one memorable case.
+  //
+  // Dragging the screen itself rather than resolving its Scrollable: the shell
+  // keeps all four branches mounted and the add-box's TextField carries a
+  // Scrollable of its own, so there is no one-liner finder for "the list".
+  Future<void> scrollAndTap(WidgetTester tester, String label, double by) async {
+    await tester.drag(find.byType(ListaScreen), Offset(0, -by));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(label));
+  }
+
+  // Cheapest-nearby: every row's own price state, with one vague term's
+  // candidate products opened.
+  testWidgets('shots — lista', (tester) async {
+    await listaShot(
+      tester,
+      'lista',
+      after: () => scrollAndTap(tester, 'trocar produto (2 opções)', 400),
+    );
+  });
+
+  // Priced at one market instead. Two shots off the same state because it does
+  // not fit one screen: the top (picker row + basket summary with its coverage
+  // count)…
+  testWidgets('shots — lista, mercado escolhido', (tester) async {
+    await listaShot(tester, 'lista_mercado_topo', listStore: '1');
+  });
+
+  // …and, scrolled down, "sem preço neste mercado" on what CONDOR doesn't carry
+  // plus the market ranking (coverage first, partial total labelled as partial).
+  testWidgets('shots — lista, ranking de mercados', (tester) async {
+    await listaShot(
+      tester,
+      'lista_mercado',
+      listStore: '1',
+      after: () => scrollAndTap(tester, 'Procurar Mercados', 700),
+    );
   });
 
   // Phase 10 (Mercado) has no shot here, same as Phase 3's ScanScreen: the

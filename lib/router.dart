@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'features/history/history_screen.dart';
 import 'features/home/home_screen.dart';
+import 'features/lista/lista_screen.dart';
 import 'features/mercado/mercado_screen.dart';
 import 'features/produto/produto_screen.dart';
 import 'features/receipt/receipt_screen.dart';
@@ -58,14 +59,7 @@ final router = GoRouter(
         ),
         StatefulShellBranch(
           routes: [
-            GoRoute(
-              path: '/lista',
-              builder: (_, _) => const PhasePlaceholder(
-                title: 'Lista de Compras',
-                phase: 12,
-                summary: 'Escreva do seu jeito e a Mia procura o melhor preço por perto.',
-              ),
-            ),
+            GoRoute(path: '/lista', builder: (_, _) => const ListaScreen()),
           ],
         ),
         StatefulShellBranch(

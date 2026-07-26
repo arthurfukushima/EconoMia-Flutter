@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/app_location.dart';
+import 'models/list_item.dart';
 
 /// Overridden in `main()`, for the same reason as the repository: shared
 /// preferences load asynchronously exactly once, and nothing downstream should
@@ -26,6 +27,8 @@ class Prefs {
 
   static const _locationKey = 'economia.location';
   static const _currentStoreKey = 'economia.currentStore';
+  static const _shoppingListKey = 'economia.shoppingList';
+  static const _listStoreKey = 'economia.listStore';
 
   /// The saved search centre, or null when the user has never set one — which
   /// is a real state the UI has copy for, not an error.
@@ -51,4 +54,36 @@ class Prefs {
   Future<void> setCurrentStore(String? cod) => cod == null
       ? _prefs.remove(_currentStoreKey)
       : _prefs.setString(_currentStoreKey, cod);
+
+  /// The shopping list, cached prices and all.
+  ///
+  /// Written on every edit, so it survives a kill mid-list. A blob that can no
+  /// longer be decoded reads as an empty list rather than taking the app down
+  /// on every launch — the same call the saved location makes.
+  List<ListItem> get shoppingList {
+    final raw = _prefs.getString(_shoppingListKey);
+    if (raw == null) return const [];
+    try {
+      return [
+        for (final e in jsonDecode(raw) as List)
+          ListItem.fromJson(e as Map<String, dynamic>),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> setShoppingList(List<ListItem> items) => _prefs.setString(
+        _shoppingListKey,
+        jsonEncode([for (final i in items) i.toJson()]),
+      );
+
+  /// The market the list is being priced at, or null for "cheapest per item".
+  /// Kept apart from [currentStore]: standing in a shop and planning a trip to
+  /// one are different answers, and the user sets them on different screens.
+  String? get listStore => _prefs.getString(_listStoreKey);
+
+  Future<void> setListStore(String? cod) => cod == null
+      ? _prefs.remove(_listStoreKey)
+      : _prefs.setString(_listStoreKey, cod);
 }

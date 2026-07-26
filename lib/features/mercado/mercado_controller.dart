@@ -15,19 +15,6 @@ final mercadoSeedProvider = FutureProvider.autoDispose<List<Offer>>((ref) async 
   return ref.watch(economiaApiProvider).nearbyStores(location);
 });
 
-/// Merges a newly-seen store list into an existing one: dedupe by `cod`, keep
-/// nearest-first. Used both to fold a scan's stores into the picker and to
-/// union the seed pages.
-List<Offer> mergeStores(List<Offer> list, List<Offer> incoming) {
-  final byCod = {for (final s in list) if (s.cod != null) s.cod!: s};
-  for (final s in incoming) {
-    if (s.cod != null) byCod.putIfAbsent(s.cod!, () => s);
-  }
-  final merged = byCod.values.toList()
-    ..sort((a, b) => (a.km ?? double.infinity).compareTo(b.km ?? double.infinity));
-  return merged;
-}
-
 /// The store to assume the user is standing in until they say otherwise. A
 /// precise (GPS) fix is authoritative — it *is* which store you're in, so it
 /// wins even over a previously persisted pick. Otherwise the persisted pick

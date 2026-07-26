@@ -7,6 +7,7 @@ import '../../domain/insights.dart';
 import '../../domain/tendencias.dart';
 import '../../theme/fonts.dart';
 import '../../theme/tokens.dart';
+import '../lista/lista_controller.dart';
 import 'home_controller.dart';
 
 String _greeting() {
@@ -45,7 +46,12 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 22),
           Text('ATALHOS', style: SaText.sectionLabel.copyWith(color: Theme.of(context).sa.muted)),
           const SizedBox(height: 10),
-          _AtalhosGrid(insights: insights, todayCount: todayTrends.length),
+          _AtalhosGrid(
+            insights: insights,
+            todayCount: todayTrends.length,
+            // Unchecked, not total: the tile answers "what's still to buy?".
+            listCount: ref.watch(listaControllerProvider).where((it) => !it.checked).length,
+          ),
           const SizedBox(height: 22),
           Text('DICA DA MIA', style: SaText.sectionLabel.copyWith(color: Theme.of(context).sa.muted)),
           const SizedBox(height: 10),
@@ -172,14 +178,19 @@ class _OnboardingCopy extends StatelessWidget {
 String _plural(int n, String one, String many) => '$n ${n == 1 ? one : many}';
 
 /// 2×2 shortcut grid, each tile's meta line wired to real local data where one
-/// exists yet — Lista (Phase 12) and Mercado have no live count to show, so
-/// their meta line is fixed rather than a fabricated zero. "Loja da Mia" is a
-/// disabled 5th row, ahead of its own phase.
+/// exists yet — Mercado has no live count to show, so its meta line is fixed
+/// rather than a fabricated zero. "Loja da Mia" is a disabled 5th row, ahead of
+/// its own phase.
 class _AtalhosGrid extends StatelessWidget {
-  const _AtalhosGrid({required this.insights, required this.todayCount});
+  const _AtalhosGrid({
+    required this.insights,
+    required this.todayCount,
+    required this.listCount,
+  });
 
   final Insights insights;
   final int todayCount;
+  final int listCount;
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +205,9 @@ class _AtalhosGrid extends StatelessWidget {
                 emoji: '🛒',
                 tint: sa.tintGreen,
                 label: 'Lista de Compras',
-                meta: 'Monte sua lista',
+                meta: listCount > 0
+                    ? '${_plural(listCount, "item", "itens")} pra comprar'
+                    : 'Monte sua lista',
                 onTap: () => context.push('/lista'),
               ),
             ),
