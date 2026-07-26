@@ -81,12 +81,48 @@ enrichment and 3 for list pricing.
 ```
 flutter analyze
 flutter test
-flutter test test/screenshots.dart --update-goldens   # renders to test/shots/
+flutter test test/savings_test.dart                    # single file
+flutter test --plain-name "computeSavings"              # single test by name
+flutter test test/screenshots.dart --update-goldens     # renders to test/shots/
 ```
 
 There is no emulator or device on this machine, so `test/screenshots.dart` is
 how UI gets eyeballed. It is not named `*_test.dart` on purpose — `flutter test`
 skips it, so it never becomes a brittle pixel assertion.
+
+## Architecture map
+
+```
+lib/
+  main.dart / app.dart / router.dart   ProviderScope, MaterialApp.router, theme,
+                                        four-branch StatefulShellRoute.indexedStack
+                                        (Home/Notas/Mercado hang off Home's tile,
+                                        not their own tab — see router.dart comment)
+  theme/          tokens.dart (SaColors ThemeExtension) → theme.dart (ThemeData);
+                  fonts.dart (Fredoka/Baloo2/Nunito via FontVariation, not weight files)
+  core/           api_client.dart, pooled.dart (bounded-concurrency pool),
+                  money.dart (parseBRL/reaisToCents/formatBRL), text.dart, categoria.dart
+  data/
+    models/       freezed + json_serializable; receipt.dart is the core domain model
+    economia_api.dart    the three backend endpoints (cep/nfce/precos)
+    off_api.dart          Open Food Facts, called directly (own error contract)
+    receipt_repository.dart   sembast persistence
+    prefs.dart            shared_preferences scalars
+  domain/         pure functions, no I/O (savings.dart, insights.dart, tendencias.dart,
+                  quests.dart, mia.dart, lista_parse.dart) — this is where correctness lives
+  features/       one folder per screen: <name>_screen.dart, <name>_controller.dart
+  widgets/        shared UI (bottom_nav, scan_chooser, phase_placeholder, wordmark)
+
+test/
+  *_test.dart           run by `flutter test`
+  screenshots.dart       NOT run by `flutter test`; invoke explicitly (see Commands)
+  fixtures/              recorded API responses used by data/model tests
+```
+
+State flows one way: `features/` reads/writes via Riverpod providers → `data/`
+(API + sembast) → `domain/` (pure transforms) back into UI state. Never call
+`domain/` functions with I/O, and never put business logic in a `*_controller.dart`
+that belongs in `domain/`.
 
 ## Reference implementation
 
