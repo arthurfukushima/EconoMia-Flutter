@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
+import 'package:sembast_web/sembast_web.dart';
 
 import 'models/precos.dart';
 import 'models/receipt.dart';
@@ -11,8 +13,12 @@ final receiptRepositoryProvider = Provider<ReceiptRepository>(
   (ref) => throw UnimplementedError('overridden in main()'),
 );
 
-/// Opens the on-device database. One file, no schema, no migration step.
+/// Opens the app database — one file on IO (no schema, no migration step),
+/// IndexedDB on web since there is no filesystem to hand path_provider.
 Future<Database> openAppDatabase() async {
+  if (kIsWeb) {
+    return databaseFactoryWeb.openDatabase('economia.db');
+  }
   final dir = await getApplicationDocumentsDirectory();
   return databaseFactoryIo.openDatabase('${dir.path}/economia.db');
 }

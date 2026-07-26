@@ -76,6 +76,24 @@ re-implement NFC-e parsing or price scraping in Dart.** Errors come back as
 Menor Preço rate-limits: keep the request pools at concurrency 6 for receipt
 enrichment and 3 for list pricing.
 
+## Third-party services — keep the boundary
+
+One service per job. Do not add a new integration that duplicates one already
+in place.
+
+- **Neon** — the only database. Postgres, billed directly (not the "Vercel
+  Postgres" marketplace resale of the same Neon, which just adds a markup and
+  a middleman layer for no benefit here).
+- **Vercel** — the only API/compute layer (`/api/cep`, `/api/nfce`,
+  `/api/precos`) and hosting.
+- **Firebase** — mobile ops only: Crashlytics, App Distribution, Play Store
+  publishing helpers. **Never** Firestore/Realtime DB, Firebase Auth, Cloud
+  Functions, or Firebase Hosting — those would duplicate Neon/Vercel above.
+
+If a task seems to need a new backend, auth, or storage service, that's a
+signal to re-check whether Vercel/Neon already cover it before reaching for
+something else.
+
 ## Commands
 
 ```

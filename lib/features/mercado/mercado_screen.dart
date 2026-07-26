@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -44,7 +45,7 @@ class MercadoScreen extends ConsumerStatefulWidget {
 }
 
 class _MercadoScreenState extends ConsumerState<MercadoScreen> {
-  late final MobileScannerController _camera;
+  MobileScannerController? _camera;
   final _manualController = TextEditingController();
   bool _manualOpen = false;
   bool _fired = false;
@@ -59,14 +60,18 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
   @override
   void initState() {
     super.initState();
-    _camera = MobileScannerController(formats: [BarcodeFormat.ean13, BarcodeFormat.ean8]);
+    // Web has no reliable camera/permission story here, so it goes straight
+    // to the manual-paste flow instead of standing up a scanner.
+    if (!kIsWeb) {
+      _camera = MobileScannerController(formats: [BarcodeFormat.ean13, BarcodeFormat.ean8]);
+    }
     _manualController.addListener(() => setState(() {}));
     _savedCod = ref.read(prefsProvider).currentStore;
   }
 
   @override
   void dispose() {
-    _camera.dispose();
+    _camera?.dispose();
     _manualController.dispose();
     super.dispose();
   }
@@ -335,7 +340,7 @@ class _Scanner extends StatelessWidget {
     required this.onManualSubmit,
   });
 
-  final MobileScannerController camera;
+  final MobileScannerController? camera;
   final bool busy;
   final void Function(BarcodeCapture) onDetect;
   final bool manualOpen;
@@ -347,6 +352,35 @@ class _Scanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sa = theme.sa;
+
+    if (camera == null) {
+      // Web: no camera, so the manual field is the only way in.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Digite o código de barras do produto.',
+            style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: manualController,
+            enabled: !busy,
+            decoration: const InputDecoration(hintText: 'Código de barras (8–14 dígitos)', isDense: true),
+            onSubmitted: (_) {
+              if (!busy && manualController.text.trim().isNotEmpty) onManualSubmit();
+            },
+          ),
+          const SizedBox(height: 8),
+          FilledButton(
+            onPressed: !busy && manualController.text.trim().isNotEmpty ? onManualSubmit : null,
+            child: busy
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Consultar'),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -363,7 +397,7 @@ class _Scanner extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                MobileScanner(controller: camera, onDetect: onDetect),
+                MobileScanner(controller: camera!, onDetect: onDetect),
                 if (busy)
                   ColoredBox(
                     color: const Color(0x99000000),

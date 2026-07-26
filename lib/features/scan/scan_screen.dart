@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +21,7 @@ class ScanScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanScreenState extends ConsumerState<ScanScreen> {
-  late final MobileScannerController _camera;
+  MobileScannerController? _camera;
   final _manualController = TextEditingController();
   bool _manualOpen = false;
 
@@ -31,16 +32,20 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   @override
   void initState() {
     super.initState();
-    _camera = MobileScannerController(
-      formats: widget.mode == ScanMode.nota
-          ? [BarcodeFormat.qrCode]
-          : [BarcodeFormat.ean13, BarcodeFormat.ean8],
-    );
+    // Web has no reliable camera/permission story here, so it goes straight
+    // to the manual-paste flow instead of standing up a scanner.
+    if (!kIsWeb) {
+      _camera = MobileScannerController(
+        formats: widget.mode == ScanMode.nota
+            ? [BarcodeFormat.qrCode]
+            : [BarcodeFormat.ean13, BarcodeFormat.ean8],
+      );
+    }
   }
 
   @override
   void dispose() {
-    _camera.dispose();
+    _camera?.dispose();
     _manualController.dispose();
     super.dispose();
   }
@@ -71,12 +76,65 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     final busy = ref.watch(scanBusyProvider);
     final error = ref.watch(scanErrorProvider);
 
-    final hint = widget.mode == ScanMode.nota
-        ? 'Aponte para o QR da nota fiscal.'
-        : 'Aponte para o código de barras do produto.';
     final placeholder = widget.mode == ScanMode.nota
         ? 'QR da nota (…?p=…) ou chave de 44 dígitos'
         : 'Código de barras (8–14 dígitos)';
+
+    if (kIsWeb) {
+      final hint = widget.mode == ScanMode.nota
+          ? 'Cole o link do QR da nota fiscal (…?p=…) ou a chave de 44 dígitos.'
+          : 'Digite o código de barras do produto.';
+      return Scaffold(
+        appBar: AppBar(title: const Text('Escanear')),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(hint, style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted)),
+                const SizedBox(height: 16),
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(error, style: theme.textTheme.labelMedium!.copyWith(color: sa.danger)),
+                  ),
+                TextField(
+                  controller: _manualController,
+                  maxLines: 3,
+                  enabled: !busy,
+                  autofocus: true,
+                  decoration: InputDecoration(hintText: placeholder, isDense: true),
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (!busy && _manualController.text.trim().isNotEmpty) {
+                      _submit(_manualController.text.trim());
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: !busy && _manualController.text.trim().isNotEmpty
+                      ? () => _submit(_manualController.text.trim())
+                      : null,
+                  child: busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Consultar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final hint = widget.mode == ScanMode.nota
+        ? 'Aponte para o QR da nota fiscal.'
+        : 'Aponte para o código de barras do produto.';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Escanear')),
@@ -91,7 +149,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
               fit: StackFit.expand,
               children: [
                 MobileScanner(
-                  controller: _camera,
+                  controller: _camera!,
                   onDetect: _onDetect,
                   errorBuilder: (context, error) => const _CameraUnavailable(),
                 ),
