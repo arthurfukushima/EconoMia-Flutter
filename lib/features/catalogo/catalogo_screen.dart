@@ -5,7 +5,6 @@ import '../../core/categoria.dart';
 import '../../core/money.dart';
 import '../../data/economia_api.dart';
 import '../../data/models/catalog.dart';
-import '../../data/models/list_item.dart';
 import '../../data/models/precos.dart';
 import '../../data/models/shopping_list.dart';
 import '../../data/prefs.dart';
@@ -302,12 +301,7 @@ class _CatalogRow extends ConsumerWidget {
       // own key. It gets priced the next time that list is opened, which is
       // the same "stale on open" pass every list already runs.
       await prefs.setItemsOf(listId, [
-        ListItem(
-          id: '${DateTime.now().microsecondsSinceEpoch}-0',
-          raw: item.description,
-          name: item.description,
-          unit: RegExp(r'\bKG\b', caseSensitive: false).hasMatch(item.description) ? 'kg' : 'un',
-        ),
+        ?catalogItem(item.description),
         ...prefs.itemsOf(listId),
       ]);
     }

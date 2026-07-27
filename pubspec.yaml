@@ -2,8 +2,7 @@ name: economia
 description: "EconoMia — escaneie sua nota fiscal e descubra onde economizar."
 publish_to: 'none'
 
-version: 1.0.0+4
-
+version: 1.0.2+20
 environment:
   sdk: ^3.12.2
 
@@ -41,6 +40,8 @@ flutter:
     # gitignored and only exists on some machines, and naming a missing asset
     # explicitly fails the build. See lib/core/app_config.dart.
     - assets/config/
+    # pt-BR grocery lexicon — see lib/core/staples.dart.
+    - assets/data/
 
   # Google Fonts ships these three only as variable fonts, so each family is one
   # file and weight is selected via FontVariation('wght', n) — see theme/fonts.dart.

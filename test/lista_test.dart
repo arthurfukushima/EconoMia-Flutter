@@ -7,7 +7,6 @@ import 'package:economia/data/models/list_item.dart';
 import 'package:economia/data/models/precos.dart';
 import 'package:economia/data/prefs.dart';
 import 'package:economia/domain/lista.dart';
-import 'package:economia/domain/lista_parse.dart';
 import 'package:economia/features/lista/lista_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,95 +34,10 @@ List<ListItem> _onDisk(ProviderContainer container) {
 }
 
 void main() {
-  group('parseItem', () {
-    test('"4x Tomates" — a count prefix', () {
-      final p = parseItem('4x Tomates');
-      expect((p.qty, p.unit, p.name), (4.0, 'un', 'Tomates'));
-    });
-
-    test('a bare leading count works too', () {
-      expect(parseItem('2 Laranjas').qty, 2);
-      expect(parseItem('2 Laranjas').name, 'Laranjas');
-    });
-
-    test('"1.5kg Carne" and "1,5kg Carne" are the same item', () {
-      for (final raw in ['1.5kg Carne', '1,5kg Carne']) {
-        final p = parseItem(raw);
-        expect((p.qty, p.unit, p.name), (1.5, 'kg', 'Carne'), reason: raw);
-      }
-    });
-
-    test('grams and millilitres are packaged goods → un, never kg', () {
-      // The UN-vs-KG trap from the other direction: a 500g pack is priced per
-      // unit upstream, so asking for a per-KG basis would compare it to a price
-      // per kilo.
-      expect(parseItem('500g Cafe').unit, 'un');
-      expect(parseItem('300ml Molho').unit, 'un');
-      expect(parseItem('500g Cafe').qty, 500);
-    });
-
-    test('litres in every spelling → L', () {
-      for (final raw in ['2l Leite', '2L Leite', '2lt Leite', '2 litros Leite']) {
-        expect(parseItem(raw).unit, 'L', reason: raw);
-      }
-    });
-
-    test('no prefix at all → 1 un, name untouched', () {
-      final p = parseItem('  Toddy  ');
-      expect((p.qty, p.unit, p.name, p.raw), (1.0, 'un', 'Toddy', 'Toddy'));
-    });
-
-    test('a line that is only a quantity keeps the raw text as its name', () {
-      // Unpriceable, but still checkable — silently dropping what someone typed
-      // is worse than a row that says "2kg".
-      expect(parseItem('2kg').name, '2kg');
-      expect(parseItem('2kg').unit, 'kg');
-    });
-
-    test('"kg" inside a word is not a unit', () {
-      expect(parseItem('4x Kgel').unit, 'un');
-    });
-  });
-
-  group('parseInput', () {
-    test('splits on commas and newlines, dropping blanks', () {
-      final lines = parseInput('4x Tomates, 2x Laranjas\nToddy,,\n  ');
-      expect(lines.map((l) => l.name), ['Tomates', 'Laranjas', 'Toddy']);
-      expect(lines.map((l) => l.qty), [4, 2, 1]);
-    });
-
-    test('nothing typed → nothing added', () {
-      expect(parseInput('   ,\n '), isEmpty);
-    });
-
-    // People paste out of Notes/Word/PDF, and that arrives decorated.
-    test('bullets and dashes are stripped, not treated as part of the name', () {
-      final lines = parseInput('• 12 Pães\n- Toddy\n— 2x Leite\n* Cafe');
-      expect(lines.map((l) => l.name), ['Pães', 'Toddy', 'Leite', 'Cafe']);
-      expect(lines.map((l) => l.qty), [12, 1, 2, 1]);
-    });
-
-    test('numbering is stripped, but a bare count is still a quantity', () {
-      expect(parseInput('1. Arroz').single.name, 'Arroz');
-      expect(parseInput('1. Arroz').single.qty, 1);
-      expect(parseInput('2) Feijao').single.name, 'Feijao');
-      // "4 Tomates" is four tomatoes, not item #4 — no trailing '.' or ')'.
-      expect(parseInput('4 Tomates').single.qty, 4);
-      expect(parseInput('4 Tomates').single.name, 'Tomates');
-    });
-
-    test('non-breaking spaces and doubled whitespace collapse', () {
-      final line = parseInput('•  2x  Leite   Integral').single;
-      expect(line.qty, 2);
-      expect(line.name, 'Leite Integral');
-    });
-
-    test('the name gets a capital, the rest of the casing is left alone', () {
-      expect(parseItem('tomates').name, 'Tomates');
-      expect(parseItem('TODDY').name, 'TODDY');
-      expect(parseItem('pão DE queijo').name, 'Pão DE queijo');
-    });
-  });
+  // The parser's own corpus lives in `lista_parse_test.dart` — it is large,
+  // it runs against the real shipped lexicon, and it is the spec for what a
+  // jotted line is worth. What is left here is the *controller*: caching,
+  // persistence, and reconciliation against what came back.
 
   group('isStale', () {
     final now = DateTime(2026, 7, 26, 12);
@@ -395,7 +309,10 @@ void main() {
       await container.read(listaControllerProvider.notifier).add('4x Tomates, 1.5kg Carne');
 
       final items = container.read(listaControllerProvider);
-      expect(items.map((i) => i.name), ['Tomates', 'Carne']);
+      // Singularised for the search; "tomate" is sold by the kilo, so four of
+      // them is about a kilo rather than four × a per-kilo price.
+      expect(items.map((i) => i.name), ['Tomate', 'Carne']);
+      expect(items.map((i) => i.unit), ['kg', 'kg']);
       expect(items.every((i) => i.precos != null), isTrue);
       expect(_onDisk(container).length, 2, reason: 'persisted, not memory-only');
     });
@@ -475,9 +392,13 @@ void main() {
       final item = container.read(listaControllerProvider).single;
       expect(item.name, '1KG ARROZ TIO JOAO');
       expect(item.qty, 1);
+      // A one-kilo bag is priced per bag. Asking per-KG would compare the bag
+      // to a kilo — the same UN-vs-KG trap, arriving from the catalog side.
+      expect(item.unit, 'un');
+      expect(item.size, (value: 1.0, unit: 'kg'));
     });
 
-    test('a KG anywhere in the description asks for a per-KG basis', () async {
+    test('a bare KG asks for a per-KG basis', () async {
       final container = await boot();
       await container.read(listaControllerProvider.notifier).addNamed('PICANHA BOV KG');
 

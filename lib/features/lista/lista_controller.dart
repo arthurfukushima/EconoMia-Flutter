@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../core/api_client.dart';
+import '../../core/measure.dart';
 import '../../core/pooled.dart';
+import '../../core/staples.dart';
 import '../../data/economia_api.dart';
 import '../../data/models/list_item.dart';
 import '../../data/models/precos.dart';
@@ -10,7 +12,27 @@ import '../../data/models/shopping_list.dart';
 import '../../data/prefs.dart';
 import '../../domain/lista.dart';
 import '../../domain/lista_parse.dart';
+import '../../domain/lista_reconcile.dart';
 import '../location/location_controller.dart';
+
+/// A catalog product as a list line, or null when the description is empty.
+///
+/// Top-level because Catálogo builds one of these for the *non-active* list too,
+/// where there is no [ListaController] to ask — and two copies of the
+/// per-KG-vs-per-package rule is exactly one copy too many.
+ListItem? catalogItem(String description) {
+  final name = description.trim();
+  if (name.isEmpty) return null;
+  final read = readCatalogName(name);
+  return ListItem(
+    id: '${DateTime.now().microsecondsSinceEpoch}-0',
+    raw: name,
+    name: name,
+    unit: read.unit,
+    sizeValue: read.size?.value,
+    sizeUnit: read.size?.unit,
+  );
+}
 
 /// Every named list, creation order. Kept apart from the items so switching
 /// lists doesn't rebuild the index and renaming doesn't rebuild the items.
@@ -120,9 +142,11 @@ class ListaController extends Notifier<List<ListItem>> {
   ///
   /// New items go on top: the thing you just typed is the thing you are looking
   /// at.
-  Future<void> add(String text) async {
-    final parsed = parseInput(text);
-    if (parsed.isEmpty) return;
+  /// Returns the ids it added, so the screen can offer to undo a whole paste in
+  /// one tap — forty bad lines is forty deletions otherwise.
+  Future<List<String>> add(String text) async {
+    final parsed = parseInput(text, staples: ref.read(staplesProvider));
+    if (parsed.isEmpty) return const [];
     // Ids only have to be unique within one list, so a microsecond stamp plus
     // the line's index does it — no uuid dependency for a local key.
     final stamp = DateTime.now().microsecondsSinceEpoch;
@@ -134,30 +158,25 @@ class ListaController extends Notifier<List<ListItem>> {
           name: parsed[i].name,
           qty: parsed[i].qty,
           unit: parsed[i].unit,
+          sizeValue: parsed[i].size?.value,
+          sizeUnit: parsed[i].size?.unit,
+          parseConf: parsed[i].conf,
+          note: parsed[i].note,
         ),
     ];
     await _write([...added, ...state]);
     await _price(added);
+    return [for (final it in added) it.id];
   }
 
   /// Adds a catalog product straight from Catálogo's "+ Lista".
   ///
   /// Not routed through [add]: the store-reported description is a whole
-  /// product name, not a jotted line, and `parseInput` would read a leading
-  /// packaging token ("1KG ARROZ…", "PCT FEIJAO…") as a quantity prefix and
-  /// eat it. The unit still has to be right, though — a per-KG product must
-  /// be priced per-KG — so it comes from a `KG` token anywhere in the
-  /// description instead.
+  /// product name, not a jotted line. `readCatalogName` owns the difference —
+  /// see it for why "CARNE BOVINA KG" and "ARROZ 1KG" want opposite bases.
   Future<void> addNamed(String description) async {
-    final name = description.trim();
-    if (name.isEmpty) return;
-    final unit = RegExp(r'\bKG\b', caseSensitive: false).hasMatch(name) ? 'kg' : 'un';
-    final item = ListItem(
-      id: '${DateTime.now().microsecondsSinceEpoch}-0',
-      raw: name,
-      name: name,
-      unit: unit,
-    );
+    final item = catalogItem(description);
+    if (item == null) return;
     await _write([item, ...state]);
     await _price([item]);
   }
@@ -165,8 +184,30 @@ class ListaController extends Notifier<List<ListItem>> {
   Future<void> toggle(String id) =>
       _update(id, (it) => it.copyWith(checked: !it.checked));
 
-  Future<void> remove(String id) =>
-      _write([for (final it in state) if (it.id != id) it]);
+  Future<void> remove(String id) => removeMany({id});
+
+  /// Undo for a whole paste — see [add].
+  Future<void> removeMany(Set<String> ids) =>
+      _write([for (final it in state) if (!ids.contains(it.id)) it]);
+
+  /// Applies one of the readings the row's "?" offered. Re-prices only when the
+  /// basis moved, same rule as [setUnit].
+  Future<void> resolve(String id, {required double qty, required String unit, Measure? size}) async {
+    final before = _byId(id);
+    if (before == null) return;
+    final after = before.copyWith(
+      qty: qty,
+      unit: unit,
+      sizeValue: size?.value,
+      sizeUnit: size?.unit,
+      // The user has now said what they meant: the row stops asking, and the
+      // reconciler stops being allowed to have an opinion.
+      parseConf: ParseConf.high,
+      reconciled: true,
+    );
+    await _write([for (final it in state) if (it.id == id) after else it]);
+    if ((before.unit == 'kg') != (unit == 'kg')) await _price([after], force: true);
+  }
 
   /// Switches which of a vague term's candidate products this line is priced
   /// as. No re-fetch: every option's prices came back in the same response.
@@ -182,7 +223,9 @@ class ListaController extends Notifier<List<ListItem>> {
   Future<void> setUnit(String id, String unit) async {
     final before = _byId(id);
     if (before == null || before.unit == unit) return;
-    final after = before.copyWith(unit: unit);
+    // Hand-set, so the reconciler stays out of it. Someone who switched this to
+    // `kg` and got no offers wants to see that, not to be quietly switched back.
+    final after = before.copyWith(unit: unit, reconciled: true);
     await _write([for (final it in state) if (it.id == id) after else it]);
     if ((before.unit == 'kg') != (unit == 'kg')) {
       await _price([after], force: true);
@@ -248,13 +291,30 @@ class ListaController extends Notifier<List<ListItem>> {
           if (r.precos != null) r.id: r.precos!,
       };
       final now = DateTime.now().millisecondsSinceEpoch;
-      await _write([
-        for (final it in state)
-          if (priced.containsKey(it.id))
-            it.copyWith(precos: priced[it.id], pricedAt: now, pricedCep: location.cep)
-          else
-            it,
-      ]);
+
+      // Reconciliation, the moment the evidence exists: real product names are
+      // what settle "12 Ovos", and this is the only point in the app where they
+      // and the parse are both in hand. See `lista_reconcile.dart`.
+      final staples = ref.read(staplesProvider);
+      final next = <ListItem>[];
+      final again = <ListItem>[];
+      for (final it in state) {
+        final precos = priced[it.id];
+        if (precos == null) {
+          next.add(it);
+          continue;
+        }
+        final fresh =
+            it.copyWith(precos: precos, pricedAt: now, pricedCep: location.cep);
+        final read = reconcile(fresh, precos, staples);
+        next.add(read.item);
+        if (read.reprice) again.add(read.item);
+      }
+      await _write(next);
+
+      // At most one extra round trip, and only for an item whose *search* the
+      // reconciler changed. It marked those `reconciled`, so this cannot loop.
+      if (again.isNotEmpty) await _price(again, force: true);
     } finally {
       pricing.state = {...pricing.state}..removeAll(ids);
     }

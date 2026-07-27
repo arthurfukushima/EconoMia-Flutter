@@ -701,15 +701,46 @@ void main() {
         ),
       ],
     );
-    const banana = Precos(
-      name: 'BANANA NANICA KG',
-      cheapest: Offer(priceCents: 499, store: 'HORTIFRUTI SANTARÉM', bairro: 'Vila Casoni', km: 3.8),
-      stores: [Offer(cod: '3', priceCents: 499, store: 'HORTIFRUTI SANTARÉM', bairro: 'Vila Casoni', km: 3.8)],
+    // Sold per kilo, so "12 Pães" cannot be twelve × this price — the row shows
+    // one kilo with the count kept beside it as a hint, and asks.
+    const pao = Precos(
+      name: 'PAO FRANCES KG',
+      cheapest: Offer(priceCents: 1890, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4),
+      stores: [Offer(cod: '1', priceCents: 1890, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4)],
+      nStores: 1,
+    );
+    // The size hint at work: the search was the broad "Refrigerante", and the
+    // 2L option is the one the line is priced as.
+    const refri = Precos(
+      name: 'REFRIGERANTE COLA 2L',
+      options: [
+        ProductOption(
+          key: 'lata',
+          name: 'REFRIGERANTE COLA LATA 350ML',
+          cheapest: Offer(priceCents: 349, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4),
+          stores: [Offer(cod: '1', priceCents: 349, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4)],
+          nStores: 1,
+        ),
+        ProductOption(
+          key: 'pet2l',
+          name: 'REFRIGERANTE COLA PET 2L',
+          cheapest: Offer(priceCents: 899, store: 'SUPER MUFFATO', bairro: 'Centro', km: 1.1),
+          stores: [Offer(cod: '2', priceCents: 899, store: 'SUPER MUFFATO', bairro: 'Centro', km: 1.1)],
+          nStores: 1,
+        ),
+      ],
+    );
+    const ovo = Precos(
+      name: 'OVO BRANCO GRANDE 12UN',
+      cheapest: Offer(priceCents: 1290, store: 'HORTIFRUTI SANTARÉM', bairro: 'Vila Casoni', km: 3.8),
+      stores: [
+        Offer(cod: '3', priceCents: 1290, store: 'HORTIFRUTI SANTARÉM', bairro: 'Vila Casoni', km: 3.8),
+      ],
       nStores: 1,
     );
 
     final now = DateTime.now().millisecondsSinceEpoch;
-    ListItem fresh(String id, String raw, Precos? precos, {double qty = 1, String unit = 'un'}) {
+    ListItem fresh(String id, String raw, Precos? precos, {String? chosenKey}) {
       final parsed = parseItem(raw);
       return ListItem(
         id: id,
@@ -717,19 +748,29 @@ void main() {
         name: parsed.name,
         qty: parsed.qty,
         unit: parsed.unit,
+        sizeValue: parsed.size?.value,
+        sizeUnit: parsed.size?.unit,
+        parseConf: parsed.conf,
+        note: parsed.note,
         precos: precos,
+        chosenKey: chosenKey,
         pricedAt: precos == null ? null : now,
         pricedCep: precos == null ? null : '86010000',
       );
     }
 
     return [
-      fresh('1', '6x Leite Integral', leite),
+      // A count, and the shopper's own aside beside the name.
+      fresh('1', '6x Leite Integral (o do desconto)', leite),
       fresh('2', 'Carne', carne),
-      fresh('3', '1.5kg Banana', banana),
+      // The three shapes the "?" marker exists for: a count on a per-kilo
+      // product, a package size, and a count that might be the pack itself.
+      fresh('3', '12 Pães', pao),
+      fresh('4', 'Refrigerante 2l', refri, chosenKey: 'pet2l'),
+      fresh('5', '12 Ovos', ovo),
       // Never successfully priced — the honest "preço indisponível" row, not a
       // fabricated R$ 0,00.
-      fresh('4', '2x Detergente Ype', null),
+      fresh('6', '2x Detergente Ype', null),
     ];
   }
 
@@ -795,7 +836,10 @@ void main() {
   Future<void> scrollAndTap(WidgetTester tester, String label, double by) async {
     await tester.drag(find.byType(ListaScreen), Offset(0, -by));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(label));
+    // `.first`: two rows can legitimately carry the same collapsible label
+    // ("trocar produto (2 opções)"), and the top-most one is the intended
+    // target in every shot here.
+    await tester.tap(find.text(label).first);
   }
 
   // Cheapest-nearby: every row's own price state, with one vague term's
@@ -805,6 +849,23 @@ void main() {
       tester,
       'lista',
       after: () => scrollAndTap(tester, 'trocar produto (2 opções)', 400),
+    );
+  });
+
+  // The correction sheet, on the "12 Pães" row: bread is priced per kilo, so
+  // the honest choice is "one kilo" or "twelve units" — and the parser is not
+  // allowed to pick the multiplying one on its own.
+  testWidgets('shots — lista, confirmar quantidade', (tester) async {
+    await listaShot(
+      tester,
+      'lista_confirmar',
+      after: () async {
+        // The first "?" is the "12 Pães" row — Leite and Carne both parse
+        // unambiguously, so they carry no marker.
+        await tester.drag(find.byType(ListaScreen), const Offset(0, -460));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.help_outline_rounded).first);
+      },
     );
   });
 
@@ -822,7 +883,7 @@ void main() {
       tester,
       'lista_mercado',
       listStore: '1',
-      after: () => scrollAndTap(tester, 'Procurar Mercados', 700),
+      after: () => scrollAndTap(tester, 'Procurar Mercados', 1100),
     );
   });
 

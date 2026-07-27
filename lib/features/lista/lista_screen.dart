@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/measure.dart';
 import '../../core/money.dart';
 import '../../data/economia_api.dart';
 import '../../data/models/list_item.dart';
@@ -8,6 +9,7 @@ import '../../data/models/precos.dart';
 import '../../data/models/shopping_list.dart';
 import '../../data/prefs.dart';
 import '../../domain/lista.dart';
+import '../../domain/lista_parse.dart';
 import '../../domain/stores.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/card_list.dart';
@@ -160,7 +162,20 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
   Future<void> _add() async {
     final text = _input.text;
     _input.clear();
-    await ref.read(listaControllerProvider.notifier).add(text);
+    final ids = await ref.read(listaControllerProvider.notifier).add(text);
+    if (!mounted || ids.length <= 1) return;
+    // A single line earns no snackbar — mistyping one item is fixed with the
+    // row's own remove button. A paste is different: forty bad lines would
+    // otherwise be forty individual deletions.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${ids.length} itens adicionados'),
+        action: SnackBarAction(
+          label: 'Desfazer',
+          onPressed: () => ref.read(listaControllerProvider.notifier).removeMany(ids.toSet()),
+        ),
+      ),
+    );
   }
 
   Future<void> _openStorePicker(List<Offer> stores, String? effectiveCod) async {
@@ -349,7 +364,7 @@ class _AddForm extends StatelessWidget {
             maxLines: null,
             keyboardType: TextInputType.multiline,
             decoration: const InputDecoration(
-              hintText: 'Ex: 4x Tomates, 1.5kg Carne, Toddy… (ou cole uma lista)',
+              hintText: 'Ex: 12 Pães, 2,5kg Carne, Refrigerante 2l… (ou cole uma lista)',
               isDense: true,
             ),
           ),
@@ -466,13 +481,26 @@ class _ItemRow extends ConsumerWidget {
             CatChip(description: item.name, ncm: active?.ncm),
             const SizedBox(width: 6),
             Expanded(
-              child: Text(
-                item.name,
-                style: theme.textTheme.bodyMedium!.copyWith(
-                  color: item.checked ? sa.muted : sa.ink,
-                  decoration: item.checked ? TextDecoration.lineThrough : null,
-                  decorationColor: sa.muted,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: theme.textTheme.bodyMedium!.copyWith(
+                      color: item.checked ? sa.muted : sa.ink,
+                      decoration: item.checked ? TextDecoration.lineThrough : null,
+                      decorationColor: sa.muted,
+                    ),
+                  ),
+                  // The shopper's own aside ("o do desconto", "R$ 20") — never
+                  // part of the search, so it only ever shows, never edits
+                  // anything below it.
+                  if (item.note != null)
+                    Text(
+                      '(${item.note})',
+                      style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                    ),
+                ],
               ),
             ),
             IconButton(
@@ -559,10 +587,25 @@ class _QtyRow extends StatelessWidget {
     controller.setQty(item.id, next);
   }
 
+  /// Offers the concrete readings the parser could have meant instead, and
+  /// applies whichever one is picked. Not `await`ed by the caller — same
+  /// fire-and-forget shape as [ListaController.setUnit] above, since the
+  /// controller's own state update is what the UI reacts to.
+  Future<void> _openCorrection(BuildContext context) async {
+    final reading = await showModalBottomSheet<_Reading>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _CorrectionSheet(item: item),
+    );
+    if (reading == null) return;
+    controller.resolve(item.id, qty: reading.qty, unit: reading.unit, size: reading.size);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sa = theme.sa;
+    final size = item.size;
 
     return Row(
       children: [
@@ -591,7 +634,193 @@ class _QtyRow extends StatelessWidget {
             DropdownMenuItem(value: 'L', child: Text('L')),
           ],
         ),
+        // The package size the shopper actually asked for — display-only
+        // here, and never part of the stepper: it is never multiplied into
+        // the price, only shown. Correcting a *misread* split between size
+        // and quantity is the "?" marker's job below, not this row's.
+        if (size != null) ...[
+          const SizedBox(width: 4),
+          Text(
+            '· ${formatMeasure(size)}',
+            style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+          ),
+        ],
+        // A quiet nudge, not an error: the parser committed to a reading but
+        // isn't sure of it, and this is the one place that reading can be
+        // overruled without retyping the whole line.
+        if (item.parseConf != ParseConf.high) ...[
+          const SizedBox(width: 2),
+          Semantics(
+            button: true,
+            label: 'confirmar quantidade de ${item.name}',
+            child: Material(
+              color: Colors.transparent,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _openCorrection(context),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(Icons.help_outline_rounded, size: 16, color: sa.muted),
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// One concrete alternative the correction sheet can offer — the qty/unit/size
+/// [ListaController.resolve] is called with if it's picked.
+typedef _Reading = ({double qty, String unit, Measure? size});
+
+typedef _ReadingOption = ({String label, _Reading reading});
+
+/// A one-line pt-BR explanation of the ambiguity, plus the readings it can
+/// resolve to.
+typedef _CorrectionSpec = ({String explanation, List<_ReadingOption> options});
+
+/// Builds the sheet's content from the *shape* of the ambiguity the parser
+/// left behind, not from [item.parseConf] alone — `medium`/`low` cover several
+/// different shapes, and each one has its own pair of honest alternatives.
+///
+/// Checked in order of specificity: the "weighed but might be a headcount"
+/// shape (`item.unit == 'kg'`) is a special case of "carries a `un` size", so
+/// it has to be tried first or it would never be reached.
+_CorrectionSpec _correctionSpec(ListItem item) {
+  final size = item.size;
+
+  // "12 Pães": priced per kilo, but the number written down reads like a
+  // headcount too — and multiplying a per-kilo price by 12 is the direction
+  // that must never happen silently.
+  if (item.unit == 'kg' && size != null && size.unit == 'un') {
+    final n = _num(size.value);
+    return (
+      explanation: 'Costuma ser vendido por peso — "$n" pode ser a quantidade de '
+          'unidades ou só uma pista do tamanho do pacote.',
+      options: [
+        (label: '1 kg', reading: (qty: 1, unit: 'kg', size: size)),
+        (label: '$n unidades', reading: (qty: size.value, unit: 'un', size: null)),
+      ],
+    );
+  }
+
+  // "12 Ovos": a bare count that is, just as plausibly, one pack of that
+  // count — the carton, not a dozen cartons.
+  if (size != null && size.unit == 'un') {
+    final n = _num(size.value);
+    return (
+      explanation: '"$n" pode ser $n unidades avulsas ou 1 pacote com $n.',
+      options: [
+        (label: '$n unidades', reading: (qty: size.value, unit: 'un', size: null)),
+        (label: '1 pacote de $n', reading: (qty: 1, unit: 'un', size: size)),
+      ],
+    );
+  }
+
+  // "Refrigerante 2l": a package size that might have been meant as the
+  // amount to buy instead.
+  if (size != null) {
+    final label = formatMeasure(size);
+    return (
+      explanation: '"$label" pode ser o tamanho da embalagem ou quanto você quer '
+          'comprar.',
+      options: [
+        (
+          label: '${_num(item.qty)} × $label',
+          reading: (qty: item.qty, unit: item.unit, size: size),
+        ),
+        (label: label, reading: (qty: size.value, unit: size.unit, size: null)),
+      ],
+    );
+  }
+
+  // Nothing sharper to offer — the parser had no size to weigh in either
+  // direction (a `medium` from a lone weight, or from a money aside).
+  return (
+    explanation: 'A quantidade foi uma estimativa — confira se está certa antes de '
+        'comprar.',
+    options: const [],
+  );
+}
+
+/// Whether [item]'s current qty/unit/size is the reading [r] describes — the
+/// sheet marks that one selected rather than leaving the choice unanchored.
+bool _readingMatches(ListItem item, _Reading r) {
+  if (item.unit != r.unit) return false;
+  if ((item.qty - r.qty).abs() > 0.001) return false;
+  final s = item.size;
+  if ((s == null) != (r.size == null)) return false;
+  if (s != null && r.size != null) {
+    if (s.unit != r.size!.unit) return false;
+    if ((s.value - r.size!.value).abs() > 0.001) return false;
+  }
+  return true;
+}
+
+/// The "?" marker's sheet: the item's name, why it's asking, and the concrete
+/// readings it can resolve to — plus the always-present way out that changes
+/// nothing.
+class _CorrectionSheet extends StatelessWidget {
+  const _CorrectionSheet({required this.item});
+
+  final ListItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+    final spec = _correctionSpec(item);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(item.name, style: theme.textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(spec.explanation, style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted)),
+            const SizedBox(height: 8),
+            for (final o in spec.options)
+              _ReadingTile(
+                label: o.label,
+                selected: _readingMatches(item, o.reading),
+                onTap: () => Navigator.pop(context, o.reading),
+              ),
+            _ReadingTile(
+              label: 'deixar como está',
+              selected: false,
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadingTile extends StatelessWidget {
+  const _ReadingTile({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label, style: theme.textTheme.bodyMedium),
+      trailing: selected ? Icon(Icons.check_rounded, color: sa.amber) : null,
+      onTap: onTap,
     );
   }
 }

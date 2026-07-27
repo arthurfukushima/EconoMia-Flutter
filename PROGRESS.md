@@ -123,7 +123,33 @@ work across, plus the client features that shipped with it.
 (Phase 13) exist in the reference but are their own planned phases with their
 own specs — not backend-integration work.
 
-_Updated 2026-07-26 (backend-integration port) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
+---
+
+## Lista parser rebuild (out of band, 2026-07-26)
+
+Post-Phase-12 hardening, not a reopening of it. The old parser read three
+regexes off the front of a line and collapsed *package size* into *quantity* —
+so `500g Mortadela` meant **500 units** (a live bug, asserted by a passing
+test), `Refrigerante 2l` searched for a 350ml can, and a pasted `1,5kg Carne`
+split into two items.
+
+| Layer | Piece | Notes |
+|---|---|---|
+| L1 | `domain/lista_parse.dart` | Rewritten. Pulls out `qty · unit · **size** · name · note` and emits a **confidence**, not a verdict. Prefix/suffix/embedded measures, containers, dozens, fractions, spelled numbers, money values, brand-digit guard |
+| L2 | `core/staples.dart` + `assets/data/staples.json` | ~200 pt-BR terms and what they are *sold as*. This is what decides `Arroz 5kg` (one bag) from `Tomate 2kg` (two kilos) — the same sentence, opposite meanings, undecidable from syntax |
+| — | `core/measure.dart` | `500g` and `0,5kg` are one thing. Canonical `kg`/`L`/`un`, plus reading sizes and pack counts back out of a store's product name |
+| L3 | `domain/lista_reconcile.dart` | Settles what the grammar couldn't, against real product names from `/api/precos`. `OVO BRANCO GRANDE 12UN` is what proves the 12 in `12 Ovos` was a carton. Every rule needs evidence, none fire twice, none overrule the user |
+| L4 | `lista_screen.dart` | Size on the quantity row, a one-tap correction sheet on any low-confidence line, the note, and undo for a whole paste |
+
+**The rule the whole thing is built on:** ambiguity degrades toward `qty 1`.
+Never resolve an ambiguity in the direction that multiplies — a line that comes
+back priceless is honest, a line that comes back 12× too dear is the failure
+that ends trust.
+
+`lista_parse_test.dart` is the spec: a ~60-line corpus, run against the real
+shipped lexicon, including the whole 22-line sample list asserted as one table.
+
+_Updated 2026-07-26 (Lista parser rebuild) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
 
 <!-- Still left for later from Phase 1, deliberately: the Missões model
      (phase 13 defines its own shape) and `intl` (no date is formatted yet).

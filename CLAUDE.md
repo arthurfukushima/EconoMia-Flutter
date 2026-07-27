@@ -57,6 +57,17 @@ everything in the phase that is not blocked, and say plainly what was left out.
 - **Money is always integer cents.** Two source formats that must never be
   crossed: SEFAZ gives `"R$ 1.234,56"` (`parseBRL`), Menor Preço gives `"3.19"`
   (`reaisToCents`).
+- **A package size is not a quantity.** On the shopping list, `qty`/`unit` is
+  *how much to buy* and is the only number that multiplies a price; `size` is
+  *how big one package is* and only steers which candidate product the line is
+  priced as. Collapsing them is what made `500g Mortadela` mean 500 units.
+  Sizes are canonical `kg`/`L`/`un` via `core/measure.dart` — never compared as
+  strings, since the same bottle is tagged `2L`, `2000ML` and `2.0 L`.
+- **Ambiguity degrades toward `qty 1`.** Never resolve an unclear line in the
+  direction that multiplies. `lista_parse.dart` reports a confidence instead of
+  guessing, `lista_reconcile.dart` only acts on evidence in a real price
+  response, and the row offers the alternative readings. Priceless is honest;
+  12× too dear is not.
 - **`domain/` is pure functions** — no I/O, no classes, no injection. That is
   what makes the savings maths directly testable, and savings correctness is the
   project's #1 risk: a wrong "you overpaid R$17" destroys trust.
@@ -85,6 +96,12 @@ Adding a knob: add the field + its default to the right section class, name it
 in `app_config.json`, read it via `ref.watch(appConfigProvider)`. A malformed
 JSON file throws at launch on purpose — a typo must not look like a server
 outage an hour later.
+
+`assets/data/staples.json` follows the same shape (typed by
+[`lib/core/staples.dart`](lib/core/staples.dart), reached via `staplesProvider`,
+compile-time `Staples.fallback`), but it is **data, not configuration**: what a
+pt-BR grocery term is sold as. Correcting a wrong sale unit there is a one-line
+edit, not a code change — which is the point.
 
 ## Backend
 
@@ -148,7 +165,9 @@ lib/
   theme/          tokens.dart (SaColors ThemeExtension) → theme.dart (ThemeData);
                   fonts.dart (Fredoka/Baloo2/Nunito via FontVariation, not weight files)
   core/           api_client.dart, pooled.dart (bounded-concurrency pool),
-                  money.dart (parseBRL/reaisToCents/formatBRL), text.dart, categoria.dart
+                  money.dart (parseBRL/reaisToCents/formatBRL), text.dart, categoria.dart,
+                  measure.dart (canonical kg/L/un sizes + pack counts),
+                  staples.dart (pt-BR lexicon ← assets/data/staples.json)
   data/
     models/       freezed + json_serializable; receipt.dart is the core domain model
     economia_api.dart    the three backend endpoints (cep/nfce/precos)
@@ -156,7 +175,8 @@ lib/
     receipt_repository.dart   sembast persistence
     prefs.dart            shared_preferences scalars
   domain/         pure functions, no I/O (savings.dart, insights.dart, tendencias.dart,
-                  quests.dart, mia.dart, lista_parse.dart) — this is where correctness lives
+                  quests.dart, mia.dart, lista_parse.dart, lista_reconcile.dart)
+                  — this is where correctness lives
   features/       one folder per screen: <name>_screen.dart, <name>_controller.dart
   widgets/        shared UI (bottom_nav, scan_chooser, phase_placeholder, wordmark)
 

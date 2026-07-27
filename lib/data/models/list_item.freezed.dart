@@ -16,10 +16,28 @@ T _$identity<T>(T value) => value;
 mixin _$ListItem {
 
  String get id;/// Exactly what the user typed, before the quantity prefix was lifted off.
- String get raw;/// The search term — [raw] minus its quantity prefix.
- String get name; double get qty;/// `un` | `kg` | `L`. Crossing the `kg` boundary changes the price-search
+ String get raw;/// The search term — [raw] minus its quantity, expanded and singularised.
+ String get name;/// **How much to buy.** The only number that multiplies a price.
+ double get qty;/// `un` | `kg` | `L`. Crossing the `kg` boundary changes the price-search
 /// basis, so the item is re-priced when it does.
- String get unit; bool get checked;/// Cached `/api/precos` result. Null means never successfully priced — the
+ String get unit; bool get checked;/// **How big one package is** — `2` of [sizeUnit] `L`, `12` of `un`.
+///
+/// Never multiplies anything. It steers *which* of a search's candidate
+/// products the line is priced as: someone who wrote "Refrigerante 2l"
+/// wants the 2L bottle's price, not the can's. Null when the line said
+/// nothing about packaging.
+///
+/// Split into two scalars rather than stored as a `Measure` record because
+/// this is a persisted JSON model and a nullable record would need a
+/// converter for no gain.
+ double? get sizeValue; String? get sizeUnit;/// `high` | `medium` | `low` — see `ParseConf`. Anything but `high` puts a
+/// correction affordance on the row, and `low` is what
+/// `lista_reconcile.dart` is allowed to overrule.
+ String get parseConf;/// The shopper's own aside — "(o do desconto)", "R$ 20". Shown on the row,
+/// never sent to the price search.
+ String? get note;/// Whether the reconciler has already had its one look at this item's
+/// prices. Bounds the re-price it can trigger to exactly one.
+ bool get reconciled;/// Cached `/api/precos` result. Null means never successfully priced — the
 /// row says so rather than showing a zero.
  Precos? get precos;/// Which [ProductOption] the user picked out of a vague term's candidates.
 /// Null = whatever the backend ranked first.
@@ -38,16 +56,16 @@ $ListItemCopyWith<ListItem> get copyWith => _$ListItemCopyWithImpl<ListItem>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListItem&&(identical(other.id, id) || other.id == id)&&(identical(other.raw, raw) || other.raw == raw)&&(identical(other.name, name) || other.name == name)&&(identical(other.qty, qty) || other.qty == qty)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.checked, checked) || other.checked == checked)&&(identical(other.precos, precos) || other.precos == precos)&&(identical(other.chosenKey, chosenKey) || other.chosenKey == chosenKey)&&(identical(other.pricedAt, pricedAt) || other.pricedAt == pricedAt)&&(identical(other.pricedCep, pricedCep) || other.pricedCep == pricedCep));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ListItem&&(identical(other.id, id) || other.id == id)&&(identical(other.raw, raw) || other.raw == raw)&&(identical(other.name, name) || other.name == name)&&(identical(other.qty, qty) || other.qty == qty)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.checked, checked) || other.checked == checked)&&(identical(other.sizeValue, sizeValue) || other.sizeValue == sizeValue)&&(identical(other.sizeUnit, sizeUnit) || other.sizeUnit == sizeUnit)&&(identical(other.parseConf, parseConf) || other.parseConf == parseConf)&&(identical(other.note, note) || other.note == note)&&(identical(other.reconciled, reconciled) || other.reconciled == reconciled)&&(identical(other.precos, precos) || other.precos == precos)&&(identical(other.chosenKey, chosenKey) || other.chosenKey == chosenKey)&&(identical(other.pricedAt, pricedAt) || other.pricedAt == pricedAt)&&(identical(other.pricedCep, pricedCep) || other.pricedCep == pricedCep));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,raw,name,qty,unit,checked,precos,chosenKey,pricedAt,pricedCep);
+int get hashCode => Object.hash(runtimeType,id,raw,name,qty,unit,checked,sizeValue,sizeUnit,parseConf,note,reconciled,precos,chosenKey,pricedAt,pricedCep);
 
 @override
 String toString() {
-  return 'ListItem(id: $id, raw: $raw, name: $name, qty: $qty, unit: $unit, checked: $checked, precos: $precos, chosenKey: $chosenKey, pricedAt: $pricedAt, pricedCep: $pricedCep)';
+  return 'ListItem(id: $id, raw: $raw, name: $name, qty: $qty, unit: $unit, checked: $checked, sizeValue: $sizeValue, sizeUnit: $sizeUnit, parseConf: $parseConf, note: $note, reconciled: $reconciled, precos: $precos, chosenKey: $chosenKey, pricedAt: $pricedAt, pricedCep: $pricedCep)';
 }
 
 
@@ -58,7 +76,7 @@ abstract mixin class $ListItemCopyWith<$Res>  {
   factory $ListItemCopyWith(ListItem value, $Res Function(ListItem) _then) = _$ListItemCopyWithImpl;
 @useResult
 $Res call({
- String id, String raw, String name, double qty, String unit, bool checked, Precos? precos, String? chosenKey, int? pricedAt, String? pricedCep
+ String id, String raw, String name, double qty, String unit, bool checked, double? sizeValue, String? sizeUnit, String parseConf, String? note, bool reconciled, Precos? precos, String? chosenKey, int? pricedAt, String? pricedCep
 });
 
 
@@ -75,7 +93,7 @@ class _$ListItemCopyWithImpl<$Res>
 
 /// Create a copy of ListItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? raw = null,Object? name = null,Object? qty = null,Object? unit = null,Object? checked = null,Object? precos = freezed,Object? chosenKey = freezed,Object? pricedAt = freezed,Object? pricedCep = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? raw = null,Object? name = null,Object? qty = null,Object? unit = null,Object? checked = null,Object? sizeValue = freezed,Object? sizeUnit = freezed,Object? parseConf = null,Object? note = freezed,Object? reconciled = null,Object? precos = freezed,Object? chosenKey = freezed,Object? pricedAt = freezed,Object? pricedCep = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,raw: null == raw ? _self.raw : raw // ignore: cast_nullable_to_non_nullable
@@ -83,6 +101,11 @@ as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non
 as String,qty: null == qty ? _self.qty : qty // ignore: cast_nullable_to_non_nullable
 as double,unit: null == unit ? _self.unit : unit // ignore: cast_nullable_to_non_nullable
 as String,checked: null == checked ? _self.checked : checked // ignore: cast_nullable_to_non_nullable
+as bool,sizeValue: freezed == sizeValue ? _self.sizeValue : sizeValue // ignore: cast_nullable_to_non_nullable
+as double?,sizeUnit: freezed == sizeUnit ? _self.sizeUnit : sizeUnit // ignore: cast_nullable_to_non_nullable
+as String?,parseConf: null == parseConf ? _self.parseConf : parseConf // ignore: cast_nullable_to_non_nullable
+as String,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String?,reconciled: null == reconciled ? _self.reconciled : reconciled // ignore: cast_nullable_to_non_nullable
 as bool,precos: freezed == precos ? _self.precos : precos // ignore: cast_nullable_to_non_nullable
 as Precos?,chosenKey: freezed == chosenKey ? _self.chosenKey : chosenKey // ignore: cast_nullable_to_non_nullable
 as String?,pricedAt: freezed == pricedAt ? _self.pricedAt : pricedAt // ignore: cast_nullable_to_non_nullable
@@ -184,10 +207,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String raw,  String name,  double qty,  String unit,  bool checked,  Precos? precos,  String? chosenKey,  int? pricedAt,  String? pricedCep)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String raw,  String name,  double qty,  String unit,  bool checked,  double? sizeValue,  String? sizeUnit,  String parseConf,  String? note,  bool reconciled,  Precos? precos,  String? chosenKey,  int? pricedAt,  String? pricedCep)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ListItem() when $default != null:
-return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked,_that.precos,_that.chosenKey,_that.pricedAt,_that.pricedCep);case _:
+return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked,_that.sizeValue,_that.sizeUnit,_that.parseConf,_that.note,_that.reconciled,_that.precos,_that.chosenKey,_that.pricedAt,_that.pricedCep);case _:
   return orElse();
 
 }
@@ -205,10 +228,10 @@ return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String raw,  String name,  double qty,  String unit,  bool checked,  Precos? precos,  String? chosenKey,  int? pricedAt,  String? pricedCep)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String raw,  String name,  double qty,  String unit,  bool checked,  double? sizeValue,  String? sizeUnit,  String parseConf,  String? note,  bool reconciled,  Precos? precos,  String? chosenKey,  int? pricedAt,  String? pricedCep)  $default,) {final _that = this;
 switch (_that) {
 case _ListItem():
-return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked,_that.precos,_that.chosenKey,_that.pricedAt,_that.pricedCep);case _:
+return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked,_that.sizeValue,_that.sizeUnit,_that.parseConf,_that.note,_that.reconciled,_that.precos,_that.chosenKey,_that.pricedAt,_that.pricedCep);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -225,10 +248,10 @@ return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String raw,  String name,  double qty,  String unit,  bool checked,  Precos? precos,  String? chosenKey,  int? pricedAt,  String? pricedCep)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String raw,  String name,  double qty,  String unit,  bool checked,  double? sizeValue,  String? sizeUnit,  String parseConf,  String? note,  bool reconciled,  Precos? precos,  String? chosenKey,  int? pricedAt,  String? pricedCep)?  $default,) {final _that = this;
 switch (_that) {
 case _ListItem() when $default != null:
-return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked,_that.precos,_that.chosenKey,_that.pricedAt,_that.pricedCep);case _:
+return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked,_that.sizeValue,_that.sizeUnit,_that.parseConf,_that.note,_that.reconciled,_that.precos,_that.chosenKey,_that.pricedAt,_that.pricedCep);case _:
   return null;
 
 }
@@ -239,20 +262,43 @@ return $default(_that.id,_that.raw,_that.name,_that.qty,_that.unit,_that.checked
 /// @nodoc
 @JsonSerializable()
 
-class _ListItem implements ListItem {
-  const _ListItem({required this.id, required this.raw, required this.name, this.qty = 1.0, this.unit = 'un', this.checked = false, this.precos, this.chosenKey, this.pricedAt, this.pricedCep});
+class _ListItem extends ListItem {
+  const _ListItem({required this.id, required this.raw, required this.name, this.qty = 1.0, this.unit = 'un', this.checked = false, this.sizeValue, this.sizeUnit, this.parseConf = 'high', this.note, this.reconciled = false, this.precos, this.chosenKey, this.pricedAt, this.pricedCep}): super._();
   factory _ListItem.fromJson(Map<String, dynamic> json) => _$ListItemFromJson(json);
 
 @override final  String id;
 /// Exactly what the user typed, before the quantity prefix was lifted off.
 @override final  String raw;
-/// The search term — [raw] minus its quantity prefix.
+/// The search term — [raw] minus its quantity, expanded and singularised.
 @override final  String name;
+/// **How much to buy.** The only number that multiplies a price.
 @override@JsonKey() final  double qty;
 /// `un` | `kg` | `L`. Crossing the `kg` boundary changes the price-search
 /// basis, so the item is re-priced when it does.
 @override@JsonKey() final  String unit;
 @override@JsonKey() final  bool checked;
+/// **How big one package is** — `2` of [sizeUnit] `L`, `12` of `un`.
+///
+/// Never multiplies anything. It steers *which* of a search's candidate
+/// products the line is priced as: someone who wrote "Refrigerante 2l"
+/// wants the 2L bottle's price, not the can's. Null when the line said
+/// nothing about packaging.
+///
+/// Split into two scalars rather than stored as a `Measure` record because
+/// this is a persisted JSON model and a nullable record would need a
+/// converter for no gain.
+@override final  double? sizeValue;
+@override final  String? sizeUnit;
+/// `high` | `medium` | `low` — see `ParseConf`. Anything but `high` puts a
+/// correction affordance on the row, and `low` is what
+/// `lista_reconcile.dart` is allowed to overrule.
+@override@JsonKey() final  String parseConf;
+/// The shopper's own aside — "(o do desconto)", "R$ 20". Shown on the row,
+/// never sent to the price search.
+@override final  String? note;
+/// Whether the reconciler has already had its one look at this item's
+/// prices. Bounds the re-price it can trigger to exactly one.
+@override@JsonKey() final  bool reconciled;
 /// Cached `/api/precos` result. Null means never successfully priced — the
 /// row says so rather than showing a zero.
 @override final  Precos? precos;
@@ -277,16 +323,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListItem&&(identical(other.id, id) || other.id == id)&&(identical(other.raw, raw) || other.raw == raw)&&(identical(other.name, name) || other.name == name)&&(identical(other.qty, qty) || other.qty == qty)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.checked, checked) || other.checked == checked)&&(identical(other.precos, precos) || other.precos == precos)&&(identical(other.chosenKey, chosenKey) || other.chosenKey == chosenKey)&&(identical(other.pricedAt, pricedAt) || other.pricedAt == pricedAt)&&(identical(other.pricedCep, pricedCep) || other.pricedCep == pricedCep));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ListItem&&(identical(other.id, id) || other.id == id)&&(identical(other.raw, raw) || other.raw == raw)&&(identical(other.name, name) || other.name == name)&&(identical(other.qty, qty) || other.qty == qty)&&(identical(other.unit, unit) || other.unit == unit)&&(identical(other.checked, checked) || other.checked == checked)&&(identical(other.sizeValue, sizeValue) || other.sizeValue == sizeValue)&&(identical(other.sizeUnit, sizeUnit) || other.sizeUnit == sizeUnit)&&(identical(other.parseConf, parseConf) || other.parseConf == parseConf)&&(identical(other.note, note) || other.note == note)&&(identical(other.reconciled, reconciled) || other.reconciled == reconciled)&&(identical(other.precos, precos) || other.precos == precos)&&(identical(other.chosenKey, chosenKey) || other.chosenKey == chosenKey)&&(identical(other.pricedAt, pricedAt) || other.pricedAt == pricedAt)&&(identical(other.pricedCep, pricedCep) || other.pricedCep == pricedCep));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,raw,name,qty,unit,checked,precos,chosenKey,pricedAt,pricedCep);
+int get hashCode => Object.hash(runtimeType,id,raw,name,qty,unit,checked,sizeValue,sizeUnit,parseConf,note,reconciled,precos,chosenKey,pricedAt,pricedCep);
 
 @override
 String toString() {
-  return 'ListItem(id: $id, raw: $raw, name: $name, qty: $qty, unit: $unit, checked: $checked, precos: $precos, chosenKey: $chosenKey, pricedAt: $pricedAt, pricedCep: $pricedCep)';
+  return 'ListItem(id: $id, raw: $raw, name: $name, qty: $qty, unit: $unit, checked: $checked, sizeValue: $sizeValue, sizeUnit: $sizeUnit, parseConf: $parseConf, note: $note, reconciled: $reconciled, precos: $precos, chosenKey: $chosenKey, pricedAt: $pricedAt, pricedCep: $pricedCep)';
 }
 
 
@@ -297,7 +343,7 @@ abstract mixin class _$ListItemCopyWith<$Res> implements $ListItemCopyWith<$Res>
   factory _$ListItemCopyWith(_ListItem value, $Res Function(_ListItem) _then) = __$ListItemCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String raw, String name, double qty, String unit, bool checked, Precos? precos, String? chosenKey, int? pricedAt, String? pricedCep
+ String id, String raw, String name, double qty, String unit, bool checked, double? sizeValue, String? sizeUnit, String parseConf, String? note, bool reconciled, Precos? precos, String? chosenKey, int? pricedAt, String? pricedCep
 });
 
 
@@ -314,7 +360,7 @@ class __$ListItemCopyWithImpl<$Res>
 
 /// Create a copy of ListItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? raw = null,Object? name = null,Object? qty = null,Object? unit = null,Object? checked = null,Object? precos = freezed,Object? chosenKey = freezed,Object? pricedAt = freezed,Object? pricedCep = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? raw = null,Object? name = null,Object? qty = null,Object? unit = null,Object? checked = null,Object? sizeValue = freezed,Object? sizeUnit = freezed,Object? parseConf = null,Object? note = freezed,Object? reconciled = null,Object? precos = freezed,Object? chosenKey = freezed,Object? pricedAt = freezed,Object? pricedCep = freezed,}) {
   return _then(_ListItem(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,raw: null == raw ? _self.raw : raw // ignore: cast_nullable_to_non_nullable
@@ -322,6 +368,11 @@ as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non
 as String,qty: null == qty ? _self.qty : qty // ignore: cast_nullable_to_non_nullable
 as double,unit: null == unit ? _self.unit : unit // ignore: cast_nullable_to_non_nullable
 as String,checked: null == checked ? _self.checked : checked // ignore: cast_nullable_to_non_nullable
+as bool,sizeValue: freezed == sizeValue ? _self.sizeValue : sizeValue // ignore: cast_nullable_to_non_nullable
+as double?,sizeUnit: freezed == sizeUnit ? _self.sizeUnit : sizeUnit // ignore: cast_nullable_to_non_nullable
+as String?,parseConf: null == parseConf ? _self.parseConf : parseConf // ignore: cast_nullable_to_non_nullable
+as String,note: freezed == note ? _self.note : note // ignore: cast_nullable_to_non_nullable
+as String?,reconciled: null == reconciled ? _self.reconciled : reconciled // ignore: cast_nullable_to_non_nullable
 as bool,precos: freezed == precos ? _self.precos : precos // ignore: cast_nullable_to_non_nullable
 as Precos?,chosenKey: freezed == chosenKey ? _self.chosenKey : chosenKey // ignore: cast_nullable_to_non_nullable
 as String?,pricedAt: freezed == pricedAt ? _self.pricedAt : pricedAt // ignore: cast_nullable_to_non_nullable
