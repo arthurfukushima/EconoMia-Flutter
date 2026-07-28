@@ -8,9 +8,9 @@ import '../../domain/tendencias.dart';
 import '../../theme/fonts.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/staggered_entrance.dart';
-import '../lista/lista_controller.dart';
 import '../gamification/gamification_controller.dart';
-import '../../domain/quests.dart';
+import '../gamification/mission_widgets.dart';
+import '../lista/lista_controller.dart';
 import 'home_controller.dart';
 
 String _greeting() {
@@ -34,7 +34,7 @@ const _zeroInsights = (
   bestAlt: null,
 );
 
-/// "A casa da Mia" — the hub: greeting, savings hero, Atalhos shortcut grid
+/// "A casa da Mia" â€” the hub: greeting, savings hero, Atalhos shortcut grid
 /// and Dica da Mia's weekday trend tip.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -93,9 +93,26 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 22),
           StaggeredEntrance(
             index: 5,
-            child: _QuestBoard(
-              view: gamification.view(),
-              onClaim: gamification.claim,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'MISSOES EM DESTAQUE',
+                  style: SaText.sectionLabel.copyWith(
+                    color: Theme.of(context).sa.muted,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                MissionCarousel(
+                  view: gamification.view(),
+                  onClaim: gamification.claim,
+                ),
+                const SizedBox(height: 10),
+                MissionsEntryCard(
+                  view: gamification.view(),
+                  onTap: () => context.push('/missoes'),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 22),
@@ -118,171 +135,94 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _PointsPill extends StatelessWidget {
+/// Counts up (with a small overshoot bounce) whenever [points] increases â€”
+/// the payoff half of the claim flourish in [_QuestRow].
+class _PointsPill extends StatefulWidget {
   const _PointsPill({required this.points});
   final int points;
   @override
+  State<_PointsPill> createState() => _PointsPillState();
+}
+
+class _PointsPillState extends State<_PointsPill>
+    with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(
+    duration: SaMotion.slow,
+    vsync: this,
+  );
+  late final _count = CurvedAnimation(
+    parent: _controller,
+    curve: SaMotion.easeOut,
+  );
+  late final _scale = TweenSequence<double>([
+    TweenSequenceItem(
+      weight: 45,
+      tween: Tween(
+        begin: 1.0,
+        end: 1.12,
+      ).chain(CurveTween(curve: SaMotion.easeBack)),
+    ),
+    TweenSequenceItem(
+      weight: 55,
+      tween: Tween(
+        begin: 1.12,
+        end: 1.0,
+      ).chain(CurveTween(curve: SaMotion.easeOut)),
+    ),
+  ]).animate(_controller);
+  late int _from = widget.points;
+  late int _to = widget.points;
+
+  @override
+  void didUpdateWidget(_PointsPill old) {
+    super.didUpdateWidget(old);
+    if (widget.points == _to) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _from = _to = widget.points;
+      return;
+    }
+    _from = _to;
+    _to = widget.points;
+    _controller.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final sa = Theme.of(context).sa;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-      decoration: BoxDecoration(
-        color: sa.paper2,
-        borderRadius: SaRadius.pill,
-        boxShadow: sa.liftSm,
-      ),
-      child: Text(
-        '$points pts',
-        style: Theme.of(context).textTheme.labelLarge!.copyWith(
-          color: sa.forest,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _QuestBoard extends StatelessWidget {
-  const _QuestBoard({required this.view, required this.onClaim});
-  final QuestView view;
-  final ValueChanged<String> onClaim;
-  String _renew(Duration d) =>
-      d.inHours > 36 ? '${(d.inHours / 24).ceil()}d' : '${d.inHours.ceil()}h';
-  @override
-  Widget build(BuildContext context) {
-    final ready = [
-      ...view.daily,
-      ...view.weekly,
-      ...view.ftue,
-    ].where((q) => q.done && !q.claimed).length;
-    final groups = <({String title, List<QuestRow> rows, String? hint})>[
-      (
-        title: 'Diárias',
-        rows: view.daily,
-        hint: 'renova em ${_renew(view.dailyIn)}',
-      ),
-      (
-        title: 'Semanais',
-        rows: view.weekly,
-        hint: 'renova em ${_renew(view.weeklyIn)}',
-      ),
-      (title: 'Primeiros passos', rows: view.ftue, hint: null),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'MISSÕES DA MIA${ready > 0 ? ' · $ready para resgatar' : ''}',
-          style: SaText.sectionLabel.copyWith(
-            color: Theme.of(context).sa.muted,
-          ),
-        ),
-        const SizedBox(height: 10),
-        for (final group in groups)
-          if (group.rows.isNotEmpty) ...[
-            Text(
-              '${group.title}${group.hint == null ? '' : ' · ${group.hint}'}',
-              style: Theme.of(context).textTheme.labelMedium!.copyWith(
-                color: Theme.of(context).sa.muted,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final shown = (_from + (_to - _from) * _count.value).round();
+        return Transform.scale(
+          scale: _scale.value,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            decoration: BoxDecoration(
+              color: sa.paper2,
+              borderRadius: SaRadius.pill,
+              boxShadow: sa.liftSm,
+            ),
+            child: Text(
+              '$shown pts',
+              style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                color: sa.forest,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 5),
-            ...[
-              for (final row in group.rows)
-                _QuestRow(row: row, onClaim: onClaim),
-            ],
-            const SizedBox(height: 8),
-          ],
-      ],
+          ),
+        );
+      },
     );
   }
 }
 
-IconData _questIcon(String event) => switch (event) {
-  'note' => Icons.receipt_long_rounded,
-  'product' => Icons.sell_rounded,
-  'list_add' => Icons.add_shopping_cart_rounded,
-  'list_check' => Icons.check_circle_rounded,
-  'mercado' => Icons.storefront_rounded,
-  'location' => Icons.my_location_rounded,
-  _ => Icons.stars_rounded,
-};
-
-class _QuestRow extends StatelessWidget {
-  const _QuestRow({required this.row, required this.onClaim});
-  final QuestRow row;
-  final ValueChanged<String> onClaim;
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final sa = theme.sa;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: sa.paper,
-        borderRadius: SaRadius.mdAll,
-        border: Border.all(color: row.done ? sa.stroke2 : sa.stroke),
-      ),
-      child: Row(
-        children: [
-          Semantics(
-            label: row.definition.label,
-            excludeSemantics: true,
-            child: Icon(
-              _questIcon(row.definition.event),
-              size: 19,
-              color: sa.ink,
-            ),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  row.definition.label,
-                  style: theme.textTheme.bodySmall!.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: SaRadius.pill,
-                  child: LinearProgressIndicator(
-                    value: row.progress / row.definition.goal,
-                    minHeight: 5,
-                    backgroundColor: sa.paper2,
-                    color: row.done ? sa.green : sa.amber,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 9),
-          if (row.claimed)
-            Text(
-              '✓ resgatado',
-              style: theme.textTheme.labelSmall!.copyWith(color: sa.green),
-            )
-          else if (row.done)
-            TextButton(
-              onPressed: () => onClaim(row.definition.id),
-              child: Text('Resgatar +${row.definition.points}'),
-            )
-          else
-            Text(
-              '${row.progress}/${row.definition.goal}\n+${row.definition.points}',
-              textAlign: TextAlign.right,
-              style: theme.textTheme.labelSmall!.copyWith(color: sa.muted),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Forest-green card, Mia avatar, and — per the honesty rule — one of two
+/// Forest-green card, Mia avatar, and â€” per the honesty rule â€” one of two
 /// truthful states: a real opportunity figure, or an onboarding nudge. Never
 /// a hollow "R$ 0,00".
 class _SavingsHero extends StatelessWidget {
@@ -335,7 +275,7 @@ class _SavingsHero extends StatelessWidget {
   }
 }
 
-/// "dá pra economizar" — framed as opportunity (paid − cheapest nearby), never
+/// "dÃ¡ pra economizar" â€” framed as opportunity (paid âˆ’ cheapest nearby), never
 /// as money Mia has already banked.
 class _SavingsCopy extends StatelessWidget {
   const _SavingsCopy({required this.saved, required this.projected});
@@ -352,12 +292,12 @@ class _SavingsCopy extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'MIA · DÁ PRA ECONOMIZAR',
+          'MIA Â· DÃ PRA ECONOMIZAR',
           style: SaText.heroLabel.copyWith(color: sa.amber),
         ),
         const SizedBox(height: 3),
         Text(
-          'Comprando no lugar mais barato, você guarda',
+          'Comprando no lugar mais barato, vocÃª guarda',
           style: theme.textTheme.bodyMedium!.copyWith(
             color: sa.paper.withValues(alpha: 0.80),
             fontWeight: FontWeight.w700,
@@ -376,10 +316,10 @@ class _SavingsCopy extends StatelessWidget {
             ),
             children: [
               const TextSpan(
-                text: 'São os preços melhores que achei nas suas notas.',
+                text: 'SÃ£o os preÃ§os melhores que achei nas suas notas.',
               ),
               if (projected > 0) ...[
-                const TextSpan(text: ' No seu ritmo, dá '),
+                const TextSpan(text: ' No seu ritmo, dÃ¡ '),
                 TextSpan(
                   text: formatBRL(projected),
                   style: TextStyle(color: sa.mint, fontWeight: FontWeight.w700),
@@ -394,7 +334,7 @@ class _SavingsCopy extends StatelessWidget {
   }
 }
 
-/// No notes yet — the onboarding nudge, never a fabricated figure.
+/// No notes yet â€” the onboarding nudge, never a fabricated figure.
 class _OnboardingCopy extends StatelessWidget {
   const _OnboardingCopy();
 
@@ -409,7 +349,7 @@ class _OnboardingCopy extends StatelessWidget {
         Text('MIA', style: SaText.heroLabel.copyWith(color: sa.amber)),
         const SizedBox(height: 6),
         Text(
-          'Escaneie sua primeira nota e eu começo a caçar economia pra você.',
+          'Escaneie sua primeira nota e eu comeÃ§o a caÃ§ar economia pra vocÃª.',
           style: theme.textTheme.bodyLarge!.copyWith(
             color: sa.paper,
             fontWeight: FontWeight.w700,
@@ -422,8 +362,8 @@ class _OnboardingCopy extends StatelessWidget {
 
 String _plural(int n, String one, String many) => '$n ${n == 1 ? one : many}';
 
-/// 2×2 shortcut grid, each tile's meta line wired to real local data where one
-/// exists yet — Mercado has no live count to show, so its meta line is fixed
+/// 2Ã—2 shortcut grid, each tile's meta line wired to real local data where one
+/// exists yet â€” Mercado has no live count to show, so its meta line is fixed
 /// rather than a fabricated zero. "Loja da Mia" is a disabled 5th row, ahead of
 /// its own phase.
 class _AtalhosGrid extends StatelessWidget {
@@ -454,7 +394,7 @@ class _AtalhosGrid extends StatelessWidget {
                 meta: listCount > 0
                     ? '${_plural(listCount, "item", "itens")} pra comprar'
                     : 'Monte sua lista',
-                onTap: () => context.push('/lista'),
+                onTap: () => context.go('/lista'),
               ),
             ),
             const SizedBox(width: 10),
@@ -464,7 +404,7 @@ class _AtalhosGrid extends StatelessWidget {
                 tint: sa.paper2,
                 semanticLabel: 'Mercado',
                 label: 'No mercado',
-                meta: 'Compare preços perto',
+                meta: 'Compare preÃ§os perto',
                 onTap: () => context.push('/mercado'),
               ),
             ),
@@ -482,7 +422,7 @@ class _AtalhosGrid extends StatelessWidget {
                 meta: todayCount > 0
                     ? '${_plural(todayCount, "oferta", "ofertas")} hoje'
                     : 'Melhores dias por categoria',
-                onTap: () => context.push('/ofertas'),
+                onTap: () => context.go('/ofertas'),
               ),
             ),
             const SizedBox(width: 10),
@@ -493,8 +433,8 @@ class _AtalhosGrid extends StatelessWidget {
                 semanticLabel: 'Notas fiscais',
                 label: 'Minhas Notas',
                 meta: insights.notesCount > 0
-                    ? '${_plural(insights.notesCount, "nota", "notas")} · ${formatBRL(insights.totalSpentCents)}'
-                    : 'Seu histórico aqui',
+                    ? '${_plural(insights.notesCount, "nota", "notas")} Â· ${formatBRL(insights.totalSpentCents)}'
+                    : 'Seu histÃ³rico aqui',
                 onTap: () => context.push('/notas'),
               ),
             ),
@@ -507,8 +447,8 @@ class _AtalhosGrid extends StatelessWidget {
               child: _Tile(
                 icon: Icons.category_rounded,
                 tint: sa.tintGreen,
-                semanticLabel: 'Catálogo',
-                label: 'Catálogo',
+                semanticLabel: 'CatÃ¡logo',
+                label: 'CatÃ¡logo',
                 meta: 'Produtos por mercado',
                 onTap: () => context.push('/catalogo'),
               ),
@@ -520,7 +460,7 @@ class _AtalhosGrid extends StatelessWidget {
                 tint: sa.paper2,
                 semanticLabel: 'Loja da Mia',
                 label: 'Loja da Mia',
-                meta: 'Em breve · pontos',
+                meta: 'Em breve Â· pontos',
                 onTap: null,
               ),
             ),
@@ -602,7 +542,7 @@ class _Tile extends StatelessWidget {
 }
 
 /// One data-driven tip for today: the cheapest category-day trend that lands
-/// on today's weekday, or — per the honesty rule — a learning nudge instead
+/// on today's weekday, or â€” per the honesty rule â€” a learning nudge instead
 /// of a fabricated promo.
 class _DicaDaMia extends StatelessWidget {
   const _DicaDaMia({required this.top});
@@ -633,12 +573,12 @@ class _DicaDaMia extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Ainda aprendendo os preços daqui',
+                        'Ainda aprendendo os preÃ§os daqui',
                         style: theme.textTheme.titleSmall,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Escaneie algumas notas e eu descubro os melhores dias de cada categoria na sua região.',
+                        'Escaneie algumas notas e eu descubro os melhores dias de cada categoria na sua regiÃ£o.',
                         style: theme.textTheme.bodyMedium!.copyWith(
                           color: sa.muted,
                         ),
@@ -649,7 +589,7 @@ class _DicaDaMia extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hoje é dia de ${top.category.label.toLowerCase()}',
+                        'Hoje Ã© dia de ${top.category.label.toLowerCase()}',
                         style: theme.textTheme.titleSmall,
                       ),
                       const SizedBox(height: 2),
@@ -672,7 +612,7 @@ class _DicaDaMia extends StatelessWidget {
                 borderRadius: SaRadius.pill,
               ),
               child: Text(
-                '−${top.deltaPct}%',
+                'âˆ’${top.deltaPct}%',
                 style: theme.textTheme.labelMedium!.copyWith(color: sa.green),
               ),
             ),

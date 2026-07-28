@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'features/catalogo/catalogo_screen.dart';
+import 'features/gamification/missions_screen.dart';
 import 'features/history/history_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/lista/lista_screen.dart';
@@ -46,8 +47,9 @@ final router = GoRouter(
                     GoRoute(
                       path: ':accessKey',
                       parentNavigatorKey: _rootKey,
-                      builder: (_, state) =>
-                          ReceiptScreen(accessKey: state.pathParameters['accessKey']!),
+                      builder: (_, state) => ReceiptScreen(
+                        accessKey: state.pathParameters['accessKey']!,
+                      ),
                     ),
                   ],
                 ),
@@ -74,6 +76,11 @@ final router = GoRouter(
                     ),
                   ],
                 ),
+                GoRoute(
+                  path: 'missoes',
+                  parentNavigatorKey: _rootKey,
+                  builder: (_, _) => const MissionsScreen(),
+                ),
               ],
             ),
           ],
@@ -90,7 +97,8 @@ final router = GoRouter(
               builder: (_, _) => const PhasePlaceholder(
                 title: 'Ofertas',
                 phase: 15,
-                summary: 'Os melhores dias da semana para cada categoria na sua região.',
+                summary:
+                    'Os melhores dias da semana para cada categoria na sua região.',
               ),
             ),
           ],
@@ -107,7 +115,9 @@ final router = GoRouter(
       path: '/scan',
       parentNavigatorKey: _rootKey,
       builder: (_, state) => ScanScreen(
-        mode: state.uri.queryParameters['mode'] == 'produto' ? ScanMode.produto : ScanMode.nota,
+        mode: state.uri.queryParameters['mode'] == 'produto'
+            ? ScanMode.produto
+            : ScanMode.nota,
       ),
     ),
     // Declared before the `:gtin` route below: go_router matches sibling

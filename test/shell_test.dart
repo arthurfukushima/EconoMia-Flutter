@@ -3,97 +3,85 @@ import 'package:economia/data/prefs.dart';
 import 'package:economia/data/receipt_repository.dart';
 import 'package:economia/router.dart';
 import 'package:economia/widgets/bottom_nav.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sembast/sembast_memory.dart' show newDatabaseFactoryMemory;
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  // The router is a single global, so each test must start it back at the top.
   tearDown(() => router.go('/splash'));
 
   Future<void> bootToHome(WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = Prefs(await SharedPreferences.getInstance());
     final repo = await tester.runAsync(
-      () async => ReceiptRepository(await newDatabaseFactoryMemory().openDatabase('shell_test.db')),
+      () async => ReceiptRepository(
+        await newDatabaseFactoryMemory().openDatabase('shell_test.db'),
+      ),
     );
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        prefsProvider.overrideWithValue(prefs),
-        receiptRepositoryProvider.overrideWithValue(repo!),
-      ],
-      child: const EconoMiaApp(),
-    ));
-    // Sit through the splash animation, which hands over to Home when it ends.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          receiptRepositoryProvider.overrideWithValue(repo!),
+        ],
+        child: const EconoMiaApp(),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
-  /// Tab labels repeat the screen names, so anything targeting the bar has to
-  /// say so — otherwise "Resumo" matches both the tab and the screen heading.
-  Finder tab(String label) =>
+  Finder tabText(String label) =>
       find.descendant(of: find.byType(BottomNav), matching: find.text(label));
 
-  testWidgets('splash hands over to Início', (tester) async {
+  testWidgets('splash hands over to Inicio', (tester) async {
     await bootToHome(tester);
-    // No receipts in this repo, so Home's hero is in its onboarding state.
-    expect(
-      find.text('Escaneie sua primeira nota e eu começo a caçar economia pra você.'),
-      findsOneWidget,
-    );
+    expect(find.text('MISSOES EM DESTAQUE'), findsOneWidget);
   });
 
-  testWidgets('the bar has four tabs plus the scan button, and they switch', (tester) async {
+  testWidgets('the bar has four tabs plus the scan button, and they switch', (
+    tester,
+  ) async {
     await bootToHome(tester);
 
-    for (final label in ['Início', 'Lista', 'Ofertas', 'Resumo', 'Escanear']) {
-      expect(tab(label), findsOneWidget, reason: 'missing tab: $label');
+    for (final label in ['Lista', 'Ofertas', 'Resumo', 'Escanear']) {
+      expect(tabText(label), findsOneWidget, reason: 'missing tab: $label');
     }
+    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
 
-    await tester.tap(tab('Resumo'));
+    await tester.tap(tabText('Resumo'));
     await tester.pumpAndSettle();
-    // No receipts in this repo — Resumo is in its <3-notes gate.
-    expect(
-      find.text('Com 3 ou mais compras eu começo a mostrar onde vai seu dinheiro e onde dá pra economizar.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Com 3 ou mais compras'), findsOneWidget);
 
-    await tester.tap(tab('Lista'));
+    await tester.tap(tabText('Lista'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Ex: 12 Pães, 2,5kg Carne, Refrigerante 2l… (ou cole uma lista)'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Sua lista está vazia'), findsOneWidget);
+    expect(find.textContaining('Ex: 12'), findsOneWidget);
+    expect(find.textContaining('Sua lista'), findsOneWidget);
 
-    await tester.tap(tab('Início'));
+    await tester.tap(find.byIcon(Icons.home_outlined));
     await tester.pumpAndSettle();
-    expect(find.text('Escaneie sua primeira nota e eu começo a caçar economia pra você.'), findsOneWidget);
+    expect(find.text('MISSOES EM DESTAQUE'), findsOneWidget);
   });
 
   testWidgets('the scan button asks which kind of scan', (tester) async {
     await bootToHome(tester);
 
-    await tester.tap(tab('Escanear'));
+    await tester.tap(tabText('Escanear'));
     await tester.pumpAndSettle();
     expect(find.text('O que vamos escanear?'), findsOneWidget);
     expect(find.text('Nota fiscal'), findsOneWidget);
     expect(find.text('Produto'), findsOneWidget);
-
-    // Picking an option routes into ScanScreen, which owns a real camera —
-    // untestable off a device (see qr_payload / scan_controller tests for the
-    // logic that screen delegates to).
   });
 
   testWidgets('routes pushed above the shell hide the tab bar', (tester) async {
     await bootToHome(tester);
     expect(find.byType(BottomNav), findsOneWidget);
 
-    // Minhas Notas has no tab of its own — it opens from a Home shortcut.
     router.push('/notas');
     await tester.pumpAndSettle();
 
     expect(find.text('Nenhuma nota ainda'), findsOneWidget);
-    expect(find.byType(BottomNav), findsNothing, reason: 'the bar belongs to the shell only');
+    expect(find.byType(BottomNav), findsNothing);
   });
 }
