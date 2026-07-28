@@ -47,7 +47,10 @@ class OfferSpan extends StatelessWidget {
         style: body,
         children: [
           TextSpan(text: '$where '),
-          TextSpan(text: formatBRL(offer.priceCents), style: body.copyWith(color: sa.green)),
+          TextSpan(
+            text: formatBRL(offer.priceCents),
+            style: body.copyWith(color: sa.green),
+          ),
           if (offer.km != null) TextSpan(text: ' (${_km(offer.km!)})'),
           if ((offer.addr ?? '').isNotEmpty) ...[
             const TextSpan(text: ' · '),
@@ -57,7 +60,10 @@ class OfferSpan extends StatelessWidget {
             ),
           ],
           if (age != null)
-            TextSpan(text: ' · preço $age', style: body.copyWith(color: sa.muted)),
+            TextSpan(
+              text: ' · preço $age',
+              style: body.copyWith(color: sa.muted),
+            ),
         ],
       ),
     );
@@ -100,15 +106,37 @@ class StoreRow extends ConsumerWidget {
               const SizedBox(height: 2),
               Row(
                 children: [
-                  Text(formatBRL(offer.priceCents), style: meta.copyWith(color: sa.green)),
+                  Text(
+                    formatBRL(offer.priceCents),
+                    style: meta.copyWith(color: sa.green),
+                  ),
                   if (offer.km != null) ...[
                     const SizedBox(width: 8),
-                    Text('📍 ${_km(offer.km!)}', style: meta.copyWith(color: sa.muted)),
+                    Icon(Icons.place_outlined, size: 15, color: sa.muted),
+                    const SizedBox(width: 3),
+                    Text(_km(offer.km!), style: meta.copyWith(color: sa.muted)),
                   ],
                   if (age != null) ...[
                     const SizedBox(width: 8),
                     Flexible(
-                      child: Text('🕒 $age', style: meta.copyWith(color: sa.muted), overflow: TextOverflow.ellipsis),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 15,
+                            color: sa.muted,
+                          ),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              age,
+                              style: meta.copyWith(color: sa.muted),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],

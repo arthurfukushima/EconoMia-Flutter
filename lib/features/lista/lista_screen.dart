@@ -20,12 +20,44 @@ import '../location/location_controller.dart';
 import 'lista_controller.dart';
 
 /// `4` → "4", `1.5` → "1,5" — no trailing zeros, pt-BR decimal comma.
-String _num(double v) =>
-    v.toStringAsFixed(3).replaceFirst(RegExp(r'\.?0+$'), '').replaceAll('.', ',');
+String _num(double v) => v
+    .toStringAsFixed(3)
+    .replaceFirst(RegExp(r'\.?0+$'), '')
+    .replaceAll('.', ',');
 
 String _qtyText(ListItem it) => '${_num(it.qty)} ${it.unit}';
 
 String _plural(int n, String one, String many) => n == 1 ? one : many;
+
+Future<String?> _showEditItemDialog(BuildContext context, String initial) {
+  final controller = TextEditingController(text: initial);
+  return showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Editar item'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: 'Nome do item'),
+        onSubmitted: (v) =>
+            Navigator.pop(context, v.trim().isEmpty ? null : v.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final v = controller.text.trim();
+            Navigator.pop(context, v.isEmpty ? null : v);
+          },
+          child: const Text('Salvar'),
+        ),
+      ],
+    ),
+  ).whenComplete(controller.dispose);
+}
 
 /// "Minha lista" — jot the list your own way (a category, a brand, or with a
 /// quantity) and each line is best-effort priced across nearby markets.
@@ -47,13 +79,13 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
   /// Seeded from the last choice, which is why it survives a restart.
   String? _selCod;
 
-  bool _showMarkets = false;
-
   @override
   void initState() {
     super.initState();
     _input.addListener(() => setState(() {}));
-    _selCod = ref.read(prefsProvider).listStoreOf(ref.read(activeListIdProvider));
+    _selCod = ref
+        .read(prefsProvider)
+        .listStoreOf(ref.read(activeListIdProvider));
     // After the first frame: the list is worth reading before the network is
     // touched, exactly as on the receipt screen.
     WidgetsBinding.instance.addPostFrameCallback(
@@ -79,7 +111,6 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     setState(() {
       _selCod = ref.read(prefsProvider).listStoreOf(id);
       _extra = const [];
-      _showMarkets = false;
     });
     ref.read(listaControllerProvider.notifier).priceStale();
   }
@@ -104,7 +135,10 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
         if (!mounted) return;
         _switchList(created.id);
       case _Rename(:final id, :final currentName):
-        final name = await _promptName(title: 'Renomear lista', initial: currentName);
+        final name = await _promptName(
+          title: 'Renomear lista',
+          initial: currentName,
+        );
         if (name == null) return;
         await ref.read(listsProvider.notifier).rename(id, name);
       case _Delete(:final id, :final currentName):
@@ -118,7 +152,10 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     }
   }
 
-  Future<String?> _promptName({required String title, required String initial}) {
+  Future<String?> _promptName({
+    required String title,
+    required String initial,
+  }) {
     final controller = TextEditingController(text: initial);
     return showDialog<String>(
       context: context,
@@ -127,11 +164,17 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(hintText: 'Ex: Churrasco, Casa, Mês'),
-          onSubmitted: (v) => Navigator.pop(context, v.trim().isEmpty ? null : v.trim()),
+          decoration: const InputDecoration(
+            hintText: 'Ex: Churrasco, Casa, Mês',
+          ),
+          onSubmitted: (v) =>
+              Navigator.pop(context, v.trim().isEmpty ? null : v.trim()),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             onPressed: () {
               final v = controller.text.trim();
@@ -145,19 +188,24 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
   }
 
   Future<bool?> _confirmDelete(String name) => showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Apagar "$name"?'),
-          content: const Text('Os itens desta lista e os preços já buscados serão perdidos.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Apagar'),
-            ),
-          ],
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Apagar "$name"?'),
+      content: const Text(
+        'Os itens desta lista e os preços já buscados serão perdidos.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
         ),
-      );
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Apagar'),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _add() async {
     final text = _input.text;
@@ -172,13 +220,18 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
         content: Text('${ids.length} itens adicionados'),
         action: SnackBarAction(
           label: 'Desfazer',
-          onPressed: () => ref.read(listaControllerProvider.notifier).removeMany(ids.toSet()),
+          onPressed: () => ref
+              .read(listaControllerProvider.notifier)
+              .removeMany(ids.toSet()),
         ),
       ),
     );
   }
 
-  Future<void> _openStorePicker(List<Offer> stores, String? effectiveCod) async {
+  Future<void> _openStorePicker(
+    List<Offer> stores,
+    String? effectiveCod,
+  ) async {
     final location = ref.read(locationControllerProvider);
     final picked = await showStorePicker(
       context,
@@ -197,6 +250,45 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
       setState(() => _extra = mergeStores(_extra, [picked.store!]));
     }
     _selectStore(picked.store?.cod);
+  }
+
+  Future<void> _openPricesMenu(
+    List<Offer> stores,
+    String? effectiveCod,
+    int marketCount,
+  ) async {
+    Offer? here;
+    for (final s in stores) {
+      if (s.cod == effectiveCod) here = s;
+    }
+
+    final action = await showModalBottomSheet<_PricesAction>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _PricesMenu(
+        currentStore: here,
+        marketCount: marketCount,
+        onTapStore: () => Navigator.pop(context, const _TrocarLoja()),
+        onTapMarkets: () => Navigator.pop(context, const _VerMercados()),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    switch (action) {
+      case _TrocarLoja():
+        _openStorePicker(stores, effectiveCod);
+      case _VerMercados():
+        final market = await showModalBottomSheet<String?>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => _MarketsSheet(
+            markets: marketRanking(ref.read(listaControllerProvider)),
+          ),
+        );
+        if (market != null) {
+          _selectStore(market);
+        }
+    }
   }
 
   /// Markets found by name search — they may carry nothing on the list, so they
@@ -239,103 +331,105 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
       if (l.id == activeId) activeName = l.name;
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+    return Column(
       children: [
-        _ListHeader(name: activeName, count: lists.length, onTap: _openListMenu),
-        const SizedBox(height: 10),
-        _AddForm(controller: _input, onSubmit: _input.text.trim().isEmpty ? null : _add),
-        if (location == null) ...[
-          const SizedBox(height: 12),
-          _Banner(text: 'Informe seu CEP acima para comparar os preços dos itens.'),
-        ],
-        if (location != null && priceError) ...[
-          const SizedBox(height: 12),
-          _Banner(
-            error: true,
-            text: 'Não foi possível consultar os preços agora — a fonte (Menor Preço / Nota '
-                'Paraná) está indisponível. Seus itens estão salvos; tente "atualizar preços" '
-                'em instantes.',
-          ),
-        ],
-        const SizedBox(height: 18),
-        if (items.isEmpty)
-          Text(
-            'Sua lista está vazia. Escreva do seu jeito — categoria (Carne), marca (Toddy) ou '
-            'com quantidade (4x Tomates) — e a Mia procura o melhor preço por perto.',
-            style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
-          )
-        else ...[
-          Row(
-            children: [
-              // Not "Minha lista" any more — the header above names the
-              // active list, and repeating a wrong name here would be worse
-              // than saying nothing.
-              Expanded(
-                child: Text('Itens (${items.length})', style: theme.textTheme.titleMedium),
-              ),
-              if (location != null)
-                TextButton(
-                  onPressed: pricing.isEmpty
-                      ? () => ref.read(listaControllerProvider.notifier).refresh()
-                      : null,
-                  child: const Text('atualizar preços'),
-                ),
-            ],
-          ),
-          if (stores.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            StorePickerRow(
-              prefix: '🏪 Preços em: ',
+        if (items.isNotEmpty && stores.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: StorePickerRow(
+              prefix: 'Preços em: ',
               label: here != null ? storeLabel(here) : 'Menor preço por perto',
-              onTap: () => _openStorePicker(stores, effectiveCod),
+              onTap: () =>
+                  _openPricesMenu(stores, effectiveCod, ranking.length),
             ),
-          ],
-          if (here != null && basket != null) ...[
-            const SizedBox(height: 10),
-            _BasketSummary(here: here, basket: basket, itemCount: items.length),
-          ],
-          const SizedBox(height: 10),
-          CardList(
-            children: [
-              for (final it in items)
-                _ItemRow(
-                  item: it,
-                  loading: pricing.contains(it.id),
-                  cod: effectiveCod,
-                ),
-            ],
-          ),
-          if (ranking.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton(
-                onPressed: () => setState(() => _showMarkets = !_showMarkets),
-                child: Text(_showMarkets ? 'Ocultar mercados' : 'Procurar Mercados'),
-              ),
-            ),
-            if (_showMarkets) ...[
-              const SizedBox(height: 10),
-              CardList(
-                children: [
-                  for (final m in ranking)
-                    _MarketRow(
-                      market: m,
-                      itemCount: items.length,
-                      selected: m.cod == effectiveCod,
-                      onTap: () => _selectStore(m.cod),
-                    ),
-                ],
-              ),
-            ],
-          ],
-          const SizedBox(height: 12),
-          Text(
-            'Preços de notas fiscais recentes na sua região (Menor Preço / Nota Paraná).',
-            style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
           ),
         ],
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+            children: [
+              _ListHeader(
+                name: activeName,
+                count: lists.length,
+                onTap: _openListMenu,
+              ),
+              const SizedBox(height: 10),
+              _AddForm(
+                controller: _input,
+                onSubmit: _input.text.trim().isEmpty ? null : _add,
+              ),
+              if (location == null) ...[
+                const SizedBox(height: 12),
+                _Banner(
+                  text:
+                      'Informe seu CEP acima para comparar os preços dos itens.',
+                ),
+              ],
+              if (location != null && priceError) ...[
+                const SizedBox(height: 12),
+                _Banner(
+                  error: true,
+                  text:
+                      'Não foi possível consultar os preços agora — a fonte (Menor Preço / Nota '
+                      'Paraná) está indisponível. Seus itens estão salvos; tente "atualizar preços" '
+                      'em instantes.',
+                ),
+              ],
+              const SizedBox(height: 18),
+              if (items.isEmpty)
+                Text(
+                  'Sua lista está vazia. Escreva do seu jeito — categoria (Carne), marca (Toddy) ou '
+                  'com quantidade (4x Tomates) — e a Mia procura o melhor preço por perto.',
+                  style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
+                )
+              else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Itens (${items.length})',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                    if (location != null)
+                      TextButton(
+                        onPressed: pricing.isEmpty
+                            ? () => ref
+                                  .read(listaControllerProvider.notifier)
+                                  .refresh()
+                            : null,
+                        child: const Text('atualizar preços'),
+                      ),
+                  ],
+                ),
+                if (here != null && basket != null) ...[
+                  const SizedBox(height: 10),
+                  _BasketSummary(
+                    here: here,
+                    basket: basket,
+                    itemCount: items.length,
+                  ),
+                ],
+                const SizedBox(height: 10),
+                CardList(
+                  children: [
+                    for (final it in items)
+                      _ItemRow(
+                        item: it,
+                        loading: pricing.contains(it.id),
+                        cod: effectiveCod,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Preços de notas fiscais recentes na sua região (Menor Preço / Nota Paraná).',
+                  style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                ),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -364,7 +458,8 @@ class _AddForm extends StatelessWidget {
             maxLines: null,
             keyboardType: TextInputType.multiline,
             decoration: const InputDecoration(
-              hintText: 'Ex: 12 Pães, 2,5kg Carne, Refrigerante 2l… (ou cole uma lista)',
+              hintText:
+                  'Ex: 12 Pães, 2,5kg Carne, Refrigerante 2l… (ou cole uma lista)',
               isDense: true,
             ),
           ),
@@ -396,7 +491,9 @@ class _Banner extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: theme.textTheme.labelMedium!.copyWith(color: error ? sa.danger : sa.ink),
+        style: theme.textTheme.labelMedium!.copyWith(
+          color: error ? sa.danger : sa.ink,
+        ),
       ),
     );
   }
@@ -405,7 +502,11 @@ class _Banner extends StatelessWidget {
 /// What the whole list costs at the picked market — with the coverage count in
 /// front of it, because a total over 6 of 10 items is not a shopping total.
 class _BasketSummary extends StatelessWidget {
-  const _BasketSummary({required this.here, required this.basket, required this.itemCount});
+  const _BasketSummary({
+    required this.here,
+    required this.basket,
+    required this.itemCount,
+  });
 
   final Offer here;
   final ListBasket basket;
@@ -427,14 +528,28 @@ class _BasketSummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('🏪 ${storeLabel(here)}', style: theme.textTheme.titleSmall),
+          Row(
+            children: [
+              Icon(Icons.storefront_rounded, size: 18, color: sa.ink),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  storeLabel(here),
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
           Text.rich(
             TextSpan(
-              style: theme.textTheme.bodyMedium!.copyWith(color: complete ? sa.ink : sa.muted),
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: complete ? sa.ink : sa.muted,
+              ),
               children: [
                 TextSpan(
-                  text: '${basket.carried} de $itemCount '
+                  text:
+                      '${basket.carried} de $itemCount '
                       '${_plural(itemCount, "item", "itens")} · total ',
                 ),
                 TextSpan(
@@ -453,7 +568,11 @@ class _BasketSummary extends StatelessWidget {
 /// One line of the list: check it off, adjust how much of it you want, and see
 /// what it costs — either cheapest nearby or at the picked market.
 class _ItemRow extends ConsumerWidget {
-  const _ItemRow({required this.item, required this.loading, required this.cod});
+  const _ItemRow({
+    required this.item,
+    required this.loading,
+    required this.cod,
+  });
 
   final ListItem item;
   final bool loading;
@@ -466,6 +585,7 @@ class _ItemRow extends ConsumerWidget {
     final controller = ref.read(listaControllerProvider.notifier);
     final active = activeOption(item);
     final options = item.precos?.options ?? const <ProductOption>[];
+    final confirmed = item.chosenKey != null || options.length <= 1;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -484,12 +604,28 @@ class _ItemRow extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.name,
-                    style: theme.textTheme.bodyMedium!.copyWith(
-                      color: item.checked ? sa.muted : sa.ink,
-                      decoration: item.checked ? TextDecoration.lineThrough : null,
-                      decorationColor: sa.muted,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () async {
+                        final newName = await _showEditItemDialog(
+                          context,
+                          item.name,
+                        );
+                        if (newName != null) {
+                          controller.rename(item.id, newName);
+                        }
+                      },
+                      child: Text(
+                        item.name,
+                        style: theme.textTheme.bodyMedium!.copyWith(
+                          color: item.checked ? sa.muted : sa.ink,
+                          decoration: item.checked
+                              ? TextDecoration.lineThrough
+                              : null,
+                          decorationColor: sa.muted,
+                        ),
+                      ),
                     ),
                   ),
                   // The shopper's own aside ("o do desconto", "R$ 20") — never
@@ -498,7 +634,9 @@ class _ItemRow extends ConsumerWidget {
                   if (item.note != null)
                     Text(
                       '(${item.note})',
-                      style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                      style: theme.textTheme.labelMedium!.copyWith(
+                        color: sa.muted,
+                      ),
                     ),
                 ],
               ),
@@ -518,7 +656,13 @@ class _ItemRow extends ConsumerWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(left: 4),
-          child: _PriceLine(item: item, active: active, loading: loading, cod: cod),
+          child: _PriceLine(
+            item: item,
+            active: active,
+            loading: loading,
+            cod: cod,
+            confirmed: confirmed,
+          ),
         ),
         if (options.length > 1)
           _Collapse(
@@ -540,7 +684,12 @@ class _ItemRow extends ConsumerWidget {
               if (options.any((o) => o.tier == 2)) ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Text('variações', style: Theme.of(context).textTheme.labelMedium!.copyWith(color: Theme.of(context).sa.muted)),
+                  child: Text(
+                    'variações',
+                    style: Theme.of(context).textTheme.labelMedium!.copyWith(
+                      color: Theme.of(context).sa.muted,
+                    ),
+                  ),
                 ),
                 for (final o in options)
                   if (o.tier == 2)
@@ -598,7 +747,12 @@ class _QtyRow extends StatelessWidget {
       builder: (_) => _CorrectionSheet(item: item),
     );
     if (reading == null) return;
-    controller.resolve(item.id, qty: reading.qty, unit: reading.unit, size: reading.size);
+    controller.resolve(
+      item.id,
+      qty: reading.qty,
+      unit: reading.unit,
+      size: reading.size,
+    );
   }
 
   @override
@@ -609,7 +763,11 @@ class _QtyRow extends StatelessWidget {
 
     return Row(
       children: [
-        _StepButton(icon: Icons.remove_rounded, label: 'menos', onTap: () => _bump(-_step)),
+        _StepButton(
+          icon: Icons.remove_rounded,
+          label: 'menos',
+          onTap: () => _bump(-_step),
+        ),
         SizedBox(
           width: 48,
           child: Text(
@@ -620,7 +778,11 @@ class _QtyRow extends StatelessWidget {
             semanticsLabel: 'quantidade de ${item.name}: ${_qtyText(item)}',
           ),
         ),
-        _StepButton(icon: Icons.add_rounded, label: 'mais', onTap: () => _bump(_step)),
+        _StepButton(
+          icon: Icons.add_rounded,
+          label: 'mais',
+          onTap: () => _bump(_step),
+        ),
         const SizedBox(width: 10),
         DropdownButton<String>(
           value: item.unit,
@@ -661,7 +823,11 @@ class _QtyRow extends StatelessWidget {
                 onTap: () => _openCorrection(context),
                 child: Padding(
                   padding: const EdgeInsets.all(4),
-                  child: Icon(Icons.help_outline_rounded, size: 16, color: sa.muted),
+                  child: Icon(
+                    Icons.help_outline_rounded,
+                    size: 16,
+                    color: sa.muted,
+                  ),
                 ),
               ),
             ),
@@ -698,11 +864,15 @@ _CorrectionSpec _correctionSpec(ListItem item) {
   if (item.unit == 'kg' && size != null && size.unit == 'un') {
     final n = _num(size.value);
     return (
-      explanation: 'Costuma ser vendido por peso — "$n" pode ser a quantidade de '
+      explanation:
+          'Costuma ser vendido por peso — "$n" pode ser a quantidade de '
           'unidades ou só uma pista do tamanho do pacote.',
       options: [
         (label: '1 kg', reading: (qty: 1, unit: 'kg', size: size)),
-        (label: '$n unidades', reading: (qty: size.value, unit: 'un', size: null)),
+        (
+          label: '$n unidades',
+          reading: (qty: size.value, unit: 'un', size: null),
+        ),
       ],
     );
   }
@@ -714,7 +884,10 @@ _CorrectionSpec _correctionSpec(ListItem item) {
     return (
       explanation: '"$n" pode ser $n unidades avulsas ou 1 pacote com $n.',
       options: [
-        (label: '$n unidades', reading: (qty: size.value, unit: 'un', size: null)),
+        (
+          label: '$n unidades',
+          reading: (qty: size.value, unit: 'un', size: null),
+        ),
         (label: '1 pacote de $n', reading: (qty: 1, unit: 'un', size: size)),
       ],
     );
@@ -725,7 +898,8 @@ _CorrectionSpec _correctionSpec(ListItem item) {
   if (size != null) {
     final label = formatMeasure(size);
     return (
-      explanation: '"$label" pode ser o tamanho da embalagem ou quanto você quer '
+      explanation:
+          '"$label" pode ser o tamanho da embalagem ou quanto você quer '
           'comprar.',
       options: [
         (
@@ -740,7 +914,8 @@ _CorrectionSpec _correctionSpec(ListItem item) {
   // Nothing sharper to offer — the parser had no size to weigh in either
   // direction (a `medium` from a lone weight, or from a money aside).
   return (
-    explanation: 'A quantidade foi uma estimativa — confira se está certa antes de '
+    explanation:
+        'A quantidade foi uma estimativa — confira se está certa antes de '
         'comprar.',
     options: const [],
   );
@@ -784,7 +959,10 @@ class _CorrectionSheet extends StatelessWidget {
           children: [
             Text(item.name, style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
-            Text(spec.explanation, style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted)),
+            Text(
+              spec.explanation,
+              style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
+            ),
             const SizedBox(height: 8),
             for (final o in spec.options)
               _ReadingTile(
@@ -805,7 +983,11 @@ class _CorrectionSheet extends StatelessWidget {
 }
 
 class _ReadingTile extends StatelessWidget {
-  const _ReadingTile({required this.label, required this.selected, required this.onTap});
+  const _ReadingTile({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -826,7 +1008,11 @@ class _ReadingTile extends StatelessWidget {
 }
 
 class _StepButton extends StatelessWidget {
-  const _StepButton({required this.icon, required this.label, required this.onTap});
+  const _StepButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -844,7 +1030,10 @@ class _StepButton extends StatelessWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
-          child: Padding(padding: const EdgeInsets.all(4), child: Icon(icon, size: 16, color: sa.ink)),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Icon(icon, size: 16, color: sa.ink),
+          ),
         ),
       ),
     );
@@ -859,12 +1048,14 @@ class _PriceLine extends StatelessWidget {
     required this.active,
     required this.loading,
     required this.cod,
+    required this.confirmed,
   });
 
   final ListItem item;
   final ProductOption? active;
   final bool loading;
   final String? cod;
+  final bool confirmed;
 
   @override
   Widget build(BuildContext context) {
@@ -875,14 +1066,27 @@ class _PriceLine extends StatelessWidget {
 
     if (loading) return Text('procurando preços…', style: muted);
     if (item.precos == null) {
-      return Text('preço indisponível — toque em "atualizar preços"', style: muted);
+      return Text(
+        'preço indisponível — toque em "atualizar preços"',
+        style: muted,
+      );
+    }
+
+    final options = item.precos!.options;
+    if (!confirmed && options.isNotEmpty) {
+      return Text(
+        '${options.length} opções — escolha um produto',
+        style: muted,
+      );
     }
 
     if (cod != null) {
       final here = offerAt(item, cod!);
       if (here == null) {
         return Text(
-          (active?.stores.isNotEmpty ?? false) ? 'sem preço neste mercado' : 'sem preço por perto',
+          (active?.stores.isNotEmpty ?? false)
+              ? 'sem preço neste mercado'
+              : 'sem preço por perto',
           style: muted,
         );
       }
@@ -890,7 +1094,8 @@ class _PriceLine extends StatelessWidget {
         TextSpan(
           style: body,
           children: [
-            if ((active?.name ?? '').isNotEmpty) TextSpan(text: '${active!.name} '),
+            if ((active?.name ?? '').isNotEmpty)
+              TextSpan(text: '${active!.name} '),
             TextSpan(
               text: formatBRL(lineCents(here.priceCents, item.qty)),
               style: theme.textTheme.titleSmall!.copyWith(color: sa.green),
@@ -921,7 +1126,11 @@ class _PriceLine extends StatelessWidget {
 /// costs and how widely it was found — the two things that tell you whether it
 /// is the one you meant.
 class _OptionTile extends StatelessWidget {
-  const _OptionTile({required this.option, required this.selected, required this.onTap});
+  const _OptionTile({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
 
   final ProductOption option;
   final bool selected;
@@ -946,7 +1155,10 @@ class _OptionTile extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(option.name ?? 'produto', style: theme.textTheme.labelMedium),
+                  child: Text(
+                    option.name ?? 'produto',
+                    style: theme.textTheme.labelMedium,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -997,9 +1209,11 @@ class _MarketRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '🏪 $where$km',
+                  '$where$km',
                   style: selected
-                      ? theme.textTheme.titleSmall!.copyWith(color: sa.amberPress)
+                      ? theme.textTheme.titleSmall!.copyWith(
+                          color: sa.amberPress,
+                        )
                       : theme.textTheme.bodyMedium,
                 ),
                 Text(
@@ -1036,11 +1250,138 @@ class _Collapse extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: 8),
-        title: Text(title, style: theme.textTheme.labelLarge!.copyWith(color: theme.sa.amberPress)),
+        title: Text(
+          title,
+          style: theme.textTheme.labelLarge!.copyWith(
+            color: theme.sa.amberPress,
+          ),
+        ),
         children: [
           for (final child in children)
             Align(alignment: Alignment.centerLeft, child: child),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Prices menu (store + markets)
+// ---------------------------------------------------------------------------
+
+sealed class _PricesAction {
+  const _PricesAction();
+}
+
+class _TrocarLoja extends _PricesAction {
+  const _TrocarLoja();
+}
+
+class _VerMercados extends _PricesAction {
+  const _VerMercados();
+}
+
+class _PricesMenu extends StatelessWidget {
+  const _PricesMenu({
+    required this.currentStore,
+    required this.marketCount,
+    required this.onTapStore,
+    required this.onTapMarkets,
+  });
+
+  final Offer? currentStore;
+  final int marketCount;
+  final VoidCallback onTapStore;
+  final VoidCallback onTapMarkets;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Preços', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Trocar loja'),
+              subtitle: currentStore != null
+                  ? Text(storeLabel(currentStore!))
+                  : null,
+              onTap: () {
+                onTapStore();
+                Navigator.pop(context);
+              },
+            ),
+            if (marketCount > 0)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Ver mercados próximos ($marketCount)'),
+                onTap: () {
+                  onTapMarkets();
+                  Navigator.pop(context);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketsSheet extends StatelessWidget {
+  const _MarketsSheet({required this.markets});
+
+  final List<MarketOption> markets;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Mercados próximos', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final m in markets)
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(context, m.cod),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: _MarketRow(
+                            market: m,
+                            itemCount: markets.fold(
+                              0,
+                              (sum, item) => sum + item.count,
+                            ),
+                            selected: false,
+                            onTap: () => Navigator.pop(context, m.cod),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1080,7 +1421,11 @@ class _Delete extends _ListAction {
 
 /// The active list's name, and the way into the list menu.
 class _ListHeader extends StatelessWidget {
-  const _ListHeader({required this.name, required this.count, required this.onTap});
+  const _ListHeader({
+    required this.name,
+    required this.count,
+    required this.onTap,
+  });
 
   final String name;
 
@@ -1104,12 +1449,20 @@ class _ListHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              const Text('📋 ', style: TextStyle(fontSize: 15)),
+              Icon(Icons.list_alt_rounded, size: 18, color: sa.ink),
+              const SizedBox(width: 6),
               Expanded(
-                child: Text(name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  name,
+                  style: theme.textTheme.titleSmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               if (count > 1)
-                Text('1 de $count  ', style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+                Text(
+                  '1 de $count  ',
+                  style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                ),
               Icon(Icons.expand_more_rounded, color: sa.muted),
             ],
           ),
@@ -1148,9 +1501,11 @@ class _ListMenu extends StatelessWidget {
                   for (final l in lists)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Text(
-                        l.id == activeId ? '📋' : '📄',
-                        style: const TextStyle(fontSize: 18),
+                      leading: Icon(
+                        l.id == activeId
+                            ? Icons.list_alt_rounded
+                            : Icons.description_outlined,
+                        color: sa.ink,
                       ),
                       title: Text(l.name, style: theme.textTheme.bodyMedium),
                       trailing: Row(
@@ -1159,19 +1514,28 @@ class _ListMenu extends StatelessWidget {
                           if (l.id == activeId)
                             Padding(
                               padding: const EdgeInsets.only(right: 4),
-                              child: Icon(Icons.check_rounded, size: 18, color: sa.green),
+                              child: Icon(
+                                Icons.check_rounded,
+                                size: 18,
+                                color: sa.green,
+                              ),
                             ),
                           IconButton(
                             icon: const Icon(Icons.edit_rounded, size: 18),
                             tooltip: 'renomear ${l.name}',
                             color: sa.muted,
-                            onPressed: () => Navigator.pop(context, _Rename(l.id, l.name)),
+                            onPressed: () =>
+                                Navigator.pop(context, _Rename(l.id, l.name)),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 18,
+                            ),
                             tooltip: 'apagar ${l.name}',
                             color: sa.muted,
-                            onPressed: () => Navigator.pop(context, _Delete(l.id, l.name)),
+                            onPressed: () =>
+                                Navigator.pop(context, _Delete(l.id, l.name)),
                           ),
                         ],
                       ),
@@ -1183,7 +1547,7 @@ class _ListMenu extends StatelessWidget {
             const Divider(height: 12),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Text('✨', style: TextStyle(fontSize: 18)),
+              leading: Icon(Icons.add_rounded, size: 20, color: sa.ink),
               title: Text('Nova lista', style: theme.textTheme.bodyMedium),
               onTap: () => Navigator.pop(context, const _Create()),
             ),

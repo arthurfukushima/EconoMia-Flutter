@@ -26,7 +26,7 @@ EconomiaApi _apiReturning(String body, {int status = 200}) => EconomiaApi(
 
 void main() {
   group('LocationController', () {
-    test('setCep resolves and persists, defaulting a fresh raio to 50', () async {
+    test('setCep resolves and persists, defaulting a fresh raio to 10', () async {
       final prefs = await _prefs();
       final container = ProviderContainer(overrides: [
         prefsProvider.overrideWithValue(prefs),
@@ -40,7 +40,7 @@ void main() {
 
       final loc = container.read(locationControllerProvider);
       expect(loc!.city, 'Londrina');
-      expect(loc.raio, 50);
+      expect(loc.raio, 10);
       expect(prefs.location!.city, 'Londrina', reason: 'survives a restart');
       expect(container.read(locationErrorProvider), isNull);
     });
@@ -102,6 +102,33 @@ void main() {
       expect(find.textContaining('Londrina'), findsOneWidget);
       expect(find.text('Seu CEP'), findsNothing);
       expect(find.byType(DropdownButton<int>), findsOneWidget);
+      expect(find.text('usar GPS'), findsNothing);
+      expect(find.text('alterar'), findsNothing);
+    });
+
+    testWidgets('tapping the summary reopens CEP editing and reveals GPS', (tester) async {
+      final prefs = await _prefs();
+      await prefs.setLocation(const AppLocation(
+        lat: -23.3,
+        lng: -51.1,
+        cep: '86010000',
+        city: 'Londrina',
+        raio: 10,
+      ));
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [prefsProvider.overrideWithValue(prefs)],
+        child: MaterialApp(theme: buildTheme(), home: const Scaffold(body: LocationBar())),
+      ));
+
+      expect(find.text('Seu CEP'), findsNothing);
+      expect(find.text('usar minha localização'), findsNothing);
+
+      await tester.tap(find.textContaining('Londrina'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Seu CEP'), findsOneWidget);
+      expect(find.text('usar minha localização'), findsOneWidget);
     });
 
     testWidgets('a failed lookup shows the pt-BR banner and stays on the form', (tester) async {

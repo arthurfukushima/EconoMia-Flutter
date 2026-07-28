@@ -6,6 +6,7 @@ import '../../core/money.dart';
 import '../../data/models/receipt.dart';
 import '../../domain/savings.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/staggered_entrance.dart';
 import 'history_controller.dart';
 
 /// Every scanned nota, newest first: tap one to reopen it (which re-prices
@@ -24,7 +25,10 @@ class HistoryScreen extends ConsumerWidget {
           'As notas salvas serão removidas. Escaneie os cupons novamente para recalcular os preços.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text('Apagar', style: TextStyle(color: sa.danger)),
@@ -32,7 +36,9 @@ class HistoryScreen extends ConsumerWidget {
         ],
       ),
     );
-    if (ok == true) await ref.read(historyControllerProvider.notifier).clearAll();
+    if (ok == true) {
+      await ref.read(historyControllerProvider.notifier).clearAll();
+    }
   }
 
   @override
@@ -56,11 +62,11 @@ class HistoryScreen extends ConsumerWidget {
         (final List<Receipt> r, _) when r.isEmpty => const _EmptyHistory(),
         (final List<Receipt> r, _) => _HistoryList(receipts: r),
         (_, AsyncError()) => Center(
-            child: Text(
-              'Não foi possível abrir o histórico.',
-              style: TextStyle(color: Theme.of(context).sa.danger),
-            ),
+          child: Text(
+            'Não foi possível abrir o histórico.',
+            style: TextStyle(color: Theme.of(context).sa.danger),
           ),
+        ),
         _ => const Center(child: CircularProgressIndicator()),
       },
     );
@@ -82,9 +88,13 @@ class _EmptyHistory extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('🧾', style: theme.textTheme.displaySmall),
+            Icon(Icons.receipt_long_rounded, size: 46, color: sa.ink),
             const SizedBox(height: 14),
-            Text('Nenhuma nota ainda', style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+            Text(
+              'Nenhuma nota ainda',
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 6),
             Text(
               'Escaneie o QR do cupom fiscal para ver onde cada item sai mais barato.',
@@ -114,7 +124,10 @@ class _HistoryList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       itemCount: receipts.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, i) => _HistoryTile(receipt: receipts[i]),
+      itemBuilder: (context, i) => StaggeredEntrance(
+        index: i,
+        child: _HistoryTile(receipt: receipts[i]),
+      ),
     );
   }
 }
@@ -128,7 +141,9 @@ class _HistoryTile extends StatelessWidget {
 
   String get _date {
     final purchasedAt = receipt.header.purchasedAt;
-    if (purchasedAt != null && purchasedAt.isNotEmpty) return purchasedAt.split(' ').first;
+    if (purchasedAt != null && purchasedAt.isNotEmpty) {
+      return purchasedAt.split(' ').first;
+    }
     final createdAt = receipt.createdAt;
     if (createdAt == null) return '';
     final d = DateTime.fromMillisecondsSinceEpoch(createdAt);
@@ -186,7 +201,9 @@ class _HistoryTile extends StatelessWidget {
                         if (_date.isNotEmpty) _date,
                         '${receipt.items.length} ${receipt.items.length == 1 ? "item" : "itens"}',
                       ].join(' · '),
-                      style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                      style: theme.textTheme.labelMedium!.copyWith(
+                        color: sa.muted,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -213,7 +230,10 @@ class _StateBadge extends StatelessWidget {
     final sa = theme.sa;
 
     if (receipt.enrichedAt == null) {
-      return Text('aguardando comparação', style: theme.textTheme.labelMedium!.copyWith(color: sa.muted));
+      return Text(
+        'aguardando comparação',
+        style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+      );
     }
 
     final savings = computeSavings(receipt.items);
@@ -224,8 +244,14 @@ class _StateBadge extends StatelessWidget {
       );
     }
     if (savings.uncompared.length == receipt.items.length) {
-      return Text('sem preços por perto', style: theme.textTheme.labelMedium!.copyWith(color: sa.muted));
+      return Text(
+        'sem preços por perto',
+        style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+      );
     }
-    return Text('melhor preço por perto', style: theme.textTheme.labelMedium!.copyWith(color: sa.muted));
+    return Text(
+      'melhor preço por perto',
+      style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+    );
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/scan/scan_chooser.dart';
+import '../features/gamification/quest_toast.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/tokens.dart';
 import 'bottom_nav.dart';
 import 'location_bar.dart';
@@ -11,7 +13,7 @@ import 'wordmark.dart';
 /// branch in between. Screens reached from Home's shortcut tiles (Minhas Notas,
 /// No mercado) are pushed *above* this shell, so they hide the bar and get a
 /// back button.
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -23,7 +25,7 @@ class AppShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: const Wordmark(),
@@ -33,12 +35,10 @@ class AppShell extends StatelessWidget {
           child: Divider(height: 1.5, color: Theme.of(context).sa.stroke),
         ),
       ),
-      body: Column(
-        children: [
-          const LocationBar(),
-          Expanded(child: navigationShell),
-        ],
-      ),
+      body: Stack(children: [
+        Column(children: [const LocationBar(), Expanded(child: navigationShell)]),
+        const QuestToast(),
+      ]),
       bottomNavigationBar: BottomNav(
         currentIndex: navigationShell.currentIndex,
         // `initialLocation: true` on a re-tap pops that branch back to its root,

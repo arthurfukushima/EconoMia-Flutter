@@ -1,6 +1,6 @@
 # EconoMia — Build Progress
 
-**14 / 17 phases**  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░  82%
+**16 / 17 phases**  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░  94%
 
 Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 
@@ -39,10 +39,10 @@ Status: ⬜ todo · 🟨 in progress · ✅ done · ⏸️ blocked
 | 10 | Mercado | ✅ done | Sonnet | Store picker seeded from staple terms + live name-search, remembers the chosen market (`economia.currentStore`); embedded EAN scanner re-arms after each check; `compareHere`'s four statuses (no-offers/not-carried/here-cheapest/cheaper-elsewhere) and the trip summary. No shot in `test/screenshots.dart` — the embedded camera calls `MobileScannerController.start()` on every mount and throws under the test binding's unregistered platform channel, same limit as Phase 3's `ScanScreen`; verified via `mercado_test.dart` + `flutter analyze` instead |
 | 11 | Nutrição | ✅ done | Sonnet | `off_api.dart` (client-direct, own tiny error contract, never throws) + shared `NutritionBody`/`NutritionPanel`; always-visible section on Produto (independent of the price lookup, per the reference), collapsible on Mercado's result cards; Nutri-Score/NOVA badges keep their official colours outside `SaColors` on purpose |
 | 12 | Lista de Compras | ✅ done | **Opus** | `lista_parse.dart` (quantity prefixes; g/ml → `un`, never a per-KG search) + `domain/lista.dart` (`isStale`, `activeOption`, `marketRanking`, `basketAt`); 12h cache where a failed fetch is skipped entirely, so old prices **and** old `pricedAt` survive and the item stays due — `lista_test.dart` pins that from both the state and the disk. Product-option switching, store basket, coverage-first market ranking. `mergeStores` graduated to `domain/stores.dart` and Mercado's picker to `widgets/store_picker.dart` (now shared, per §1) |
-| 13 | Gamification | ⬜ todo | **Opus** | Mia Points + Missões (needs events from 2, 3, 9, 10, 12) |
+| 13 | Gamification | ✅ done | **Opus** | Mia Points + Missões, quest reducer, six event hooks, Home board and QuestToast |
 | 14 | Resumo | ✅ done | Sonnet | `aggregate()` extended (byCategory, topItems, byStore, bestAlt) and shared with Home's hero rather than duplicated; <3-notes gate; category spend bars, campeões da despensa, favourite market, best-alternative-store tip (reusing `basket.dart`'s `storeOptions`) |
 | 15 | Tendências | ⬜ todo | Sonnet | Best weekday per category |
-| 16 | Polish | ⬜ todo | Sonnet | Motion, empty-state audit, semantics, icon + splash |
+| 16 | Polish | ✅ done | Sonnet | Shared route/list motion with reduced-motion guard; emoji chips moved to semantic Material icons; native splash uses Mia colours |
 
 ---
 
@@ -178,9 +178,9 @@ that ends trust.
 `lista_parse_test.dart` is the spec: a ~60-line corpus, run against the real
 shipped lexicon, including the whole 22-line sample list asserted as one table.
 
-_Updated 2026-07-26 (Lista parser rebuild) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
+_Updated 2026-07-28 (Phase 16) · Spec: [BUILD_PLAN.md](BUILD_PLAN.md) · Procedure: [CLAUDE.md](CLAUDE.md#executing-a-phase)_
 
-<!-- Still left for later from Phase 1, deliberately: the Missões model
-     (phase 13 defines its own shape) and `intl` (no date is formatted yet).
-     Lista's model and its pricing orchestration landed with phase 12. -->
+<!-- Still left for later from Phase 1, deliberately: `intl` (no date is
+     formatted yet). Lista's model and its pricing orchestration landed with
+     phase 12; Missões landed with phase 13. -->
 

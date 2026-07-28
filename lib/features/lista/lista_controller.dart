@@ -14,6 +14,7 @@ import '../../domain/lista.dart';
 import '../../domain/lista_parse.dart';
 import '../../domain/lista_reconcile.dart';
 import '../location/location_controller.dart';
+import '../gamification/gamification_controller.dart';
 
 /// A catalog product as a list line, or null when the description is empty.
 ///
@@ -165,6 +166,7 @@ class ListaController extends Notifier<List<ListItem>> {
         ),
     ];
     await _write([...added, ...state]);
+    ref.read(gamificationProvider.notifier).track('list_add', added.length);
     await _price(added);
     return [for (final it in added) it.id];
   }
@@ -178,11 +180,16 @@ class ListaController extends Notifier<List<ListItem>> {
     final item = catalogItem(description);
     if (item == null) return;
     await _write([item, ...state]);
+    ref.read(gamificationProvider.notifier).track('list_add');
     await _price([item]);
   }
 
-  Future<void> toggle(String id) =>
-      _update(id, (it) => it.copyWith(checked: !it.checked));
+  Future<void> toggle(String id) async {
+    final item = _byId(id);
+    if (item == null) return;
+    await _update(id, (it) => it.copyWith(checked: !it.checked));
+    if (!item.checked) ref.read(gamificationProvider.notifier).track('list_check');
+  }
 
   Future<void> remove(String id) => removeMany({id});
 
@@ -230,6 +237,24 @@ class ListaController extends Notifier<List<ListItem>> {
     if ((before.unit == 'kg') != (unit == 'kg')) {
       await _price([after], force: true);
     }
+  }
+
+  /// Renames an item and re-searches for matches with the new name.
+  Future<void> rename(String id, String name) async {
+    final before = _byId(id);
+    final trimmed = name.trim();
+    if (before == null || trimmed.isEmpty || trimmed == before.name) return;
+    final after = before.copyWith(
+      raw: trimmed,
+      name: trimmed,
+      chosenKey: null,
+      reconciled: false,
+      precos: null,
+      pricedAt: null,
+      pricedCep: null,
+    );
+    await _write([for (final it in state) if (it.id == id) after else it]);
+    await _price([after], force: true);
   }
 
   /// Prices whatever is stale — the mount and CEP-change pass. Cheap when

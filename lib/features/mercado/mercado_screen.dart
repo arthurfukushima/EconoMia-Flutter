@@ -25,6 +25,7 @@ import '../../widgets/raw_data.dart';
 import '../../widgets/store_picker.dart';
 import '../location/location_controller.dart';
 import 'mercado_controller.dart';
+import '../gamification/gamification_controller.dart';
 
 /// One trip's scan: the barcode and its price lookup.
 class _CheckedEntry {
@@ -64,7 +65,9 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
     // Web has no reliable camera/permission story here, so it goes straight
     // to the manual-paste flow instead of standing up a scanner.
     if (!kIsWeb) {
-      _camera = MobileScannerController(formats: [BarcodeFormat.ean13, BarcodeFormat.ean8]);
+      _camera = MobileScannerController(
+        formats: [BarcodeFormat.ean13, BarcodeFormat.ean8],
+      );
     }
     _manualController.addListener(() => setState(() {}));
     _savedCod = ref.read(prefsProvider).currentStore;
@@ -112,7 +115,10 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
   Future<void> _submit(String raw) async {
     final digits = raw.replaceAll(RegExp(r'\D'), '');
     if (!RegExp(r'^\d{8,14}$').hasMatch(digits)) {
-      setState(() => _error = 'Código inválido: aponte para um código de barras de produto.');
+      setState(
+        () => _error =
+            'Código inválido: aponte para um código de barras de produto.',
+      );
       return;
     }
     final location = ref.read(locationControllerProvider);
@@ -124,7 +130,9 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
     });
     Precos? data;
     try {
-      data = await ref.read(economiaApiProvider).lookupProduct(digits, location);
+      data = await ref
+          .read(economiaApiProvider)
+          .lookupProduct(digits, location);
     } on ApiException {
       data = null;
     }
@@ -136,9 +144,15 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
         return;
       }
       _scannedStores = mergeStores(_scannedStores, data.stores);
+      ref.read(gamificationProvider.notifier).track('product');
+      ref.read(gamificationProvider.notifier).track('mercado');
       _checked.insert(
         0,
-        _CheckedEntry(id: '$digits-${DateTime.now().microsecondsSinceEpoch}', gtin: digits, data: data),
+        _CheckedEntry(
+          id: '$digits-${DateTime.now().microsecondsSinceEpoch}',
+          gtin: digits,
+          data: data,
+        ),
       );
     });
   }
@@ -152,7 +166,10 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
     final seeding = seedAsync.isLoading;
     final stores = mergeStores(seedAsync.value ?? const [], _scannedStores);
     final effectiveCod =
-        _codStr ?? (location == null ? null : defaultStoreCod(location, stores, _savedCod));
+        _codStr ??
+        (location == null
+            ? null
+            : defaultStoreCod(location, stores, _savedCod));
     Offer? here;
     for (final s in stores) {
       if (s.cod == effectiveCod) {
@@ -168,19 +185,21 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
           const LocationBar(),
           Expanded(
             child: location == null
-                ? const _Banner(text: 'Informe seu CEP acima para comparar preços.')
+                ? const _Banner(
+                    text: 'Informe seu CEP acima para comparar preços.',
+                  )
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
                     children: [
                       StorePickerRow(
-                        prefix: '🏪 Você está em: ',
+                        prefix: 'Você está em: ',
                         label: here != null
                             ? storeLabel(here)
                             : seeding
-                                ? 'carregando mercados…'
-                                : stores.isEmpty
-                                    ? 'toque para buscar o mercado'
-                                    : 'selecione o mercado',
+                            ? 'carregando mercados…'
+                            : stores.isEmpty
+                            ? 'toque para buscar o mercado'
+                            : 'selecione o mercado',
                         onTap: () => _openStorePicker(stores, seeding),
                       ),
                       if (effectiveCod != null) ...[
@@ -192,18 +211,30 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
                               '/catalogo/$effectiveCod'
                               '${here?.store != null ? '?nome=${Uri.encodeQueryComponent(here!.store!)}' : ''}',
                             ),
-                            icon: const Icon(Icons.storefront_rounded, size: 18),
+                            icon: const Icon(
+                              Icons.storefront_rounded,
+                              size: 18,
+                            ),
                             label: const Text('ver catálogo deste mercado'),
                           ),
                         ),
                       ],
                       if (_error != null) ...[
                         const SizedBox(height: 10),
-                        Text(_error!, style: theme.textTheme.labelMedium!.copyWith(color: sa.danger)),
+                        Text(
+                          _error!,
+                          style: theme.textTheme.labelMedium!.copyWith(
+                            color: sa.danger,
+                          ),
+                        ),
                       ],
                       if (_checked.isNotEmpty) ...[
                         const SizedBox(height: 14),
-                        _TripSummary(checked: _checked, cod: effectiveCod, here: here),
+                        _TripSummary(
+                          checked: _checked,
+                          cod: effectiveCod,
+                          here: here,
+                        ),
                       ],
                       const SizedBox(height: 14),
                       _Scanner(
@@ -212,28 +243,38 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
                         onDetect: _onDetect,
                         manualOpen: _manualOpen,
                         manualController: _manualController,
-                        onToggleManual: () => setState(() => _manualOpen = !_manualOpen),
-                        onManualSubmit: () => _submit(_manualController.text.trim()),
+                        onToggleManual: () =>
+                            setState(() => _manualOpen = !_manualOpen),
+                        onManualSubmit: () =>
+                            _submit(_manualController.text.trim()),
                       ),
                       const SizedBox(height: 18),
                       if (_checked.isEmpty)
                         Text(
                           'Escaneie os produtos das prateleiras para comparar o preço daqui com o '
                           'de outros mercados.',
-                          style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
+                          style: theme.textTheme.bodyMedium!.copyWith(
+                            color: sa.muted,
+                          ),
                         )
                       else ...[
-                        Text('Conferidos (${_checked.length})', style: theme.textTheme.titleMedium),
+                        Text(
+                          'Conferidos (${_checked.length})',
+                          style: theme.textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 8),
                         CardList(
                           children: [
-                            for (final e in _checked) _ResultCard(entry: e, cod: effectiveCod),
+                            for (final e in _checked)
+                              _ResultCard(entry: e, cod: effectiveCod),
                           ],
                         ),
                         const SizedBox(height: 10),
                         Text(
                           'Preços de notas fiscais recentes na sua região (Menor Preço / Nota Paraná).',
-                          style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                          style: theme.textTheme.labelMedium!.copyWith(
+                            color: sa.muted,
+                          ),
                         ),
                       ],
                     ],
@@ -246,7 +287,8 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
 }
 
 /// Region price range as "R$X" or "R$X – R$Y".
-String _rangeText(PriceRange range) => formatRangeBRL(range.minCents, range.maxCents);
+String _rangeText(PriceRange range) =>
+    formatRangeBRL(range.minCents, range.maxCents);
 
 class _Banner extends StatelessWidget {
   const _Banner({required this.text});
@@ -269,10 +311,13 @@ class _Banner extends StatelessWidget {
   }
 }
 
-
 /// How much this trip's scans would cost less at another market.
 class _TripSummary extends StatelessWidget {
-  const _TripSummary({required this.checked, required this.cod, required this.here});
+  const _TripSummary({
+    required this.checked,
+    required this.cod,
+    required this.here,
+  });
 
   final List<_CheckedEntry> checked;
   final String? cod;
@@ -309,8 +354,11 @@ class _TripSummary extends StatelessWidget {
               style: theme.textTheme.bodyMedium,
               children: [
                 TextSpan(text: '$count ', style: theme.textTheme.titleSmall),
-                TextSpan(text: count == 1 ? 'item conferido' : 'itens conferidos'),
-                if (here != null) TextSpan(text: ' em ${here!.store ?? 'loja'}'),
+                TextSpan(
+                  text: count == 1 ? 'item conferido' : 'itens conferidos',
+                ),
+                if (here != null)
+                  TextSpan(text: ' em ${here!.store ?? 'loja'}'),
               ],
             ),
           ),
@@ -320,18 +368,24 @@ class _TripSummary extends StatelessWidget {
               TextSpan(
                 style: theme.textTheme.bodyMedium,
                 children: [
-                  const TextSpan(text: 'Comprando em outro mercado você economiza '),
+                  const TextSpan(
+                    text: 'Comprando em outro mercado você economiza ',
+                  ),
                   TextSpan(
                     text: formatBRL(tripSavings),
-                    style: theme.textTheme.titleSmall!.copyWith(color: sa.green),
+                    style: theme.textTheme.titleSmall!.copyWith(
+                      color: sa.green,
+                    ),
                   ),
-                  TextSpan(text: ' em $overCount ${overCount == 1 ? "item" : "itens"}'),
+                  TextSpan(
+                    text: ' em $overCount ${overCount == 1 ? "item" : "itens"}',
+                  ),
                 ],
               ),
             )
           else
             Text(
-              'Nenhum item sai mais barato em outro mercado por perto. 👍',
+              'Nenhum item sai mais barato em outro mercado por perto.',
               style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
             ),
         ],
@@ -379,16 +433,27 @@ class _Scanner extends StatelessWidget {
           TextField(
             controller: manualController,
             enabled: !busy,
-            decoration: const InputDecoration(hintText: 'Código de barras (8–14 dígitos)', isDense: true),
+            decoration: const InputDecoration(
+              hintText: 'Código de barras (8–14 dígitos)',
+              isDense: true,
+            ),
             onSubmitted: (_) {
-              if (!busy && manualController.text.trim().isNotEmpty) onManualSubmit();
+              if (!busy && manualController.text.trim().isNotEmpty) {
+                onManualSubmit();
+              }
             },
           ),
           const SizedBox(height: 8),
           FilledButton(
-            onPressed: !busy && manualController.text.trim().isNotEmpty ? onManualSubmit : null,
+            onPressed: !busy && manualController.text.trim().isNotEmpty
+                ? onManualSubmit
+                : null,
             child: busy
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Text('Consultar'),
           ),
         ],
@@ -414,7 +479,9 @@ class _Scanner extends StatelessWidget {
                 if (busy)
                   ColoredBox(
                     color: const Color(0x99000000),
-                    child: Center(child: CircularProgressIndicator(color: sa.amber)),
+                    child: Center(
+                      child: CircularProgressIndicator(color: sa.amber),
+                    ),
                   ),
               ],
             ),
@@ -429,11 +496,16 @@ class _Scanner extends StatelessWidget {
           TextField(
             controller: manualController,
             enabled: !busy,
-            decoration: const InputDecoration(hintText: 'Código de barras (8–14 dígitos)', isDense: true),
+            decoration: const InputDecoration(
+              hintText: 'Código de barras (8–14 dígitos)',
+              isDense: true,
+            ),
           ),
           const SizedBox(height: 8),
           FilledButton(
-            onPressed: !busy && manualController.text.trim().isNotEmpty ? onManualSubmit : null,
+            onPressed: !busy && manualController.text.trim().isNotEmpty
+                ? onManualSubmit
+                : null,
             child: const Text('Consultar'),
           ),
         ],
@@ -472,7 +544,10 @@ class _ResultCard extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(data.name ?? 'Código ${entry.gtin}', style: theme.textTheme.bodyMedium),
+              child: Text(
+                data.name ?? 'Código ${entry.gtin}',
+                style: theme.textTheme.bodyMedium,
+              ),
             ),
           ],
         ),
@@ -481,7 +556,10 @@ class _ResultCard extends ConsumerWidget {
         if (cmp.status == CompareStatus.hereCheapest)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text('✓ melhor preço', style: theme.textTheme.labelMedium!.copyWith(color: sa.green)),
+            child: Text(
+              '✓ melhor preço',
+              style: theme.textTheme.labelMedium!.copyWith(color: sa.green),
+            ),
           ),
         if (cmp.status == CompareStatus.cheaperElsewhere)
           Padding(
@@ -503,52 +581,75 @@ class _ResultCard extends ConsumerWidget {
 
   /// The four honest states [compareHere] can reach, in the same order as
   /// [CompareStatus].
-  Widget _priceLine(ThemeData theme, SaColors sa, CompareResult cmp, PriceRange? range) {
+  Widget _priceLine(
+    ThemeData theme,
+    SaColors sa,
+    CompareResult cmp,
+    PriceRange? range,
+  ) {
     final body = theme.textTheme.labelMedium!;
     return switch (cmp.status) {
       CompareStatus.hereCheapest => Text.rich(
-          TextSpan(
-            style: body,
-            children: [
-              const TextSpan(text: 'aqui '),
-              TextSpan(text: formatBRL(cmp.here!.priceCents), style: body.copyWith(color: sa.green)),
-              if (range != null)
-                TextSpan(text: ' · região ${_rangeText(range)}', style: body.copyWith(color: sa.muted)),
-            ],
-          ),
-        ),
-      CompareStatus.cheaperElsewhere => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        TextSpan(
+          style: body,
           children: [
-            Text.rich(
+            const TextSpan(text: 'aqui '),
+            TextSpan(
+              text: formatBRL(cmp.here!.priceCents),
+              style: body.copyWith(color: sa.green),
+            ),
+            if (range != null)
               TextSpan(
-                style: body,
-                children: [
-                  const TextSpan(text: 'aqui '),
-                  TextSpan(text: formatBRL(cmp.here!.priceCents), style: body.copyWith(color: sa.danger)),
-                ],
+                text: ' · região ${_rangeText(range)}',
+                style: body.copyWith(color: sa.muted),
               ),
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('mais barato: ', style: body),
-                Expanded(child: OfferSpan(offer: cmp.cheaper!)),
-              ],
-            ),
           ],
         ),
-      CompareStatus.notCarried => cmp.cheapest != null
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      CompareStatus.cheaperElsewhere => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              style: body,
               children: [
-                Text('este mercado não está no comparador · mais barato: ', style: body.copyWith(color: sa.muted)),
-                Expanded(child: OfferSpan(offer: cmp.cheapest!)),
+                const TextSpan(text: 'aqui '),
+                TextSpan(
+                  text: formatBRL(cmp.here!.priceCents),
+                  style: body.copyWith(color: sa.danger),
+                ),
               ],
-            )
-          : Text('sem preço por perto para este item', style: body.copyWith(color: sa.muted)),
-      CompareStatus.noOffers =>
-        Text('sem preço por perto para o código ${entry.gtin}', style: body.copyWith(color: sa.muted)),
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('mais barato: ', style: body),
+              Expanded(child: OfferSpan(offer: cmp.cheaper!)),
+            ],
+          ),
+        ],
+      ),
+      CompareStatus.notCarried =>
+        cmp.cheapest != null
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'este mercado não está no comparador · mais barato: ',
+                    style: body.copyWith(color: sa.muted),
+                  ),
+                  Expanded(child: OfferSpan(offer: cmp.cheapest!)),
+                ],
+              )
+            : Text(
+                'sem preço por perto para este item',
+                style: body.copyWith(color: sa.muted),
+              ),
+      CompareStatus.noOffers => Text(
+        'sem preço por perto para o código ${entry.gtin}',
+        style: body.copyWith(color: sa.muted),
+      ),
     };
   }
 }
@@ -569,8 +670,16 @@ class _NutritionCollapse extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: 8),
-        title: Text('Informação nutricional', style: theme.textTheme.labelLarge),
-        children: [Align(alignment: Alignment.centerLeft, child: NutritionBody(n: n))],
+        title: Text(
+          'Informação nutricional',
+          style: theme.textTheme.labelLarge,
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: NutritionBody(n: n),
+          ),
+        ],
       ),
     );
   }

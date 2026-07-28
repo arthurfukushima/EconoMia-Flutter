@@ -10,8 +10,8 @@ const _raios = [1, 5, 10, 15, 25, 50];
 
 /// CEP + GPS + raio, docked above the tab content. Two states, per the
 /// honesty rule for a setting nothing downstream can work without: an unset
-/// form (CEP field, "usar minha localização") and a compact summary (📍
-/// label, raio picker, "usar GPS", "alterar").
+/// form (CEP field, "usar minha localização") and a compact summary with a
+/// tappable CEP field plus the raio picker.
 class LocationBar extends ConsumerStatefulWidget {
   const LocationBar({super.key});
 
@@ -134,16 +134,31 @@ class _LocationBarState extends ConsumerState<LocationBar> {
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: sa.paper2,
-            borderRadius: SaRadius.pill,
-            border: Border.all(color: sa.stroke, width: 1.5),
-          ),
-          child: Text(
-            '📍 ${label.isEmpty ? 'localização atual' : label}${location.precise ? ' (GPS)' : ''}',
-            style: theme.textTheme.labelMedium,
+        InkWell(
+          onTap: busy ? null : () => setState(() => _editing = true),
+          borderRadius: SaRadius.mdAll,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: sa.paper2,
+              borderRadius: SaRadius.mdAll,
+              border: Border.all(color: sa.stroke, width: 1.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.location_on_outlined, size: 18, color: sa.ink),
+                const SizedBox(width: 8),
+                Text(
+                  label.isEmpty ? 'localização atual' : label,
+                  style: theme.textTheme.labelMedium,
+                ),
+                if (location.precise) ...[
+                  const SizedBox(width: 6),
+                  Text('(GPS)', style: theme.textTheme.labelMedium),
+                ],
+              ],
+            ),
           ),
         ),
         DropdownButton<int>(
@@ -153,8 +168,6 @@ class _LocationBarState extends ConsumerState<LocationBar> {
           items: [for (final k in _raios) DropdownMenuItem(value: k, child: Text('$k km'))],
           onChanged: busy ? null : (v) => v == null ? null : ref.read(locationControllerProvider.notifier).setRaio(v),
         ),
-        TextButton(onPressed: busy ? null : _useGps, child: const Text('usar GPS')),
-        TextButton(onPressed: () => setState(() => _editing = true), child: const Text('alterar')),
       ],
     );
   }

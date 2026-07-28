@@ -12,7 +12,7 @@ _AppLocation _$AppLocationFromJson(Map<String, dynamic> json) => _AppLocation(
   cep: json['cep'] as String?,
   city: json['city'] as String?,
   state: json['state'] as String?,
-  raio: (json['raio'] as num?)?.toInt() ?? 50,
+  raio: (json['raio'] as num?)?.toInt() ?? 10,
   precise: json['precise'] as bool? ?? false,
 );
 

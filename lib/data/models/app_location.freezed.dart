@@ -17,8 +17,8 @@ mixin _$AppLocation {
 
  double get lat; double get lng; String? get cep; String? get city; String? get state;/// Search radius in km, from the picker's `[1, 5, 10, 15, 25, 50]`.
 /// The backend defaults to 25 but the client always sends this explicitly —
-/// 50 is the widest Menor Preço accepts and the honest default for a CEP
-/// centroid.
+/// 10 is our default for a new location, while 50 remains the widest
+/// Menor Preço accepts.
  int get raio;/// True when [lat]/[lng] came from GPS rather than a CEP centroid.
 /// A precise fix is what lets "which market am I in?" narrow its radius
 /// instead of dragging in a whole city.
@@ -222,7 +222,7 @@ return $default(_that.lat,_that.lng,_that.cep,_that.city,_that.state,_that.raio,
 @JsonSerializable()
 
 class _AppLocation implements AppLocation {
-  const _AppLocation({required this.lat, required this.lng, this.cep, this.city, this.state, this.raio = 50, this.precise = false});
+  const _AppLocation({required this.lat, required this.lng, this.cep, this.city, this.state, this.raio = 10, this.precise = false});
   factory _AppLocation.fromJson(Map<String, dynamic> json) => _$AppLocationFromJson(json);
 
 @override final  double lat;
@@ -232,8 +232,8 @@ class _AppLocation implements AppLocation {
 @override final  String? state;
 /// Search radius in km, from the picker's `[1, 5, 10, 15, 25, 50]`.
 /// The backend defaults to 25 but the client always sends this explicitly —
-/// 50 is the widest Menor Preço accepts and the honest default for a CEP
-/// centroid.
+/// 10 is our default for a new location, while 50 remains the widest
+/// Menor Preço accepts.
 @override@JsonKey() final  int raio;
 /// True when [lat]/[lng] came from GPS rather than a CEP centroid.
 /// A precise fix is what lets "which market am I in?" narrow its radius

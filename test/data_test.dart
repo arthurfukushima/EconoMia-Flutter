@@ -30,7 +30,7 @@ void main() {
       expect(loc.state, 'Paraná', reason: 'the response is UTF-8, not latin-1');
       expect(loc.lat, closeTo(-23.31, 0.01));
       // Neither field is in the response; both are ours and must default.
-      expect(loc.raio, 50);
+      expect(loc.raio, 10);
       expect(loc.precise, isFalse);
 
       expect(AppLocation.fromJson(loc.toJson()), loc);

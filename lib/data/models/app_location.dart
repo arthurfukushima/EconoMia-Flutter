@@ -19,9 +19,9 @@ abstract class AppLocation with _$AppLocation {
 
     /// Search radius in km, from the picker's `[1, 5, 10, 15, 25, 50]`.
     /// The backend defaults to 25 but the client always sends this explicitly —
-    /// 50 is the widest Menor Preço accepts and the honest default for a CEP
-    /// centroid.
-    @Default(50) int raio,
+    /// 10 is our default for a new location, while 50 remains the widest
+    /// Menor Preço accepts.
+    @Default(10) int raio,
 
     /// True when [lat]/[lng] came from GPS rather than a CEP centroid.
     /// A precise fix is what lets "which market am I in?" narrow its radius

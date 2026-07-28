@@ -6,6 +6,7 @@ import '../../core/api_client.dart';
 import '../../data/economia_api.dart';
 import '../../data/models/app_location.dart';
 import '../../data/prefs.dart';
+import '../gamification/gamification_controller.dart';
 
 /// The saved search centre — null until the user sets one by CEP or GPS.
 /// [LocationController] is the only writer; every screen that needs "nearby"
@@ -43,11 +44,12 @@ class LocationController extends Notifier<AppLocation?> {
     }
   }
 
-  /// CEP → search centre. Keeps the current raio, or the 50km default for a
+  /// CEP → search centre. Keeps the current raio, or the 10km default for a
   /// first-ever location.
   Future<void> setCep(String cepInput) => _run(() async {
         final loc = await ref.read(economiaApiProvider).resolveCep(cepInput);
-        await _persist(loc.copyWith(raio: state?.raio ?? 50));
+        await _persist(loc.copyWith(raio: state?.raio ?? 10));
+        ref.read(gamificationProvider.notifier).track('location');
       });
 
   /// GPS fix, reverse-geocoded to a city/CEP label. The fix is kept even when
@@ -62,7 +64,7 @@ class LocationController extends Notifier<AppLocation?> {
           cep: state?.cep,
           city: state?.city,
           state: state?.state,
-          raio: state?.raio ?? 50,
+          raio: state?.raio ?? 10,
         );
         try {
           final place = await ref.read(economiaApiProvider).resolveCoords(pos.latitude, pos.longitude);
@@ -71,6 +73,7 @@ class LocationController extends Notifier<AppLocation?> {
           ref.read(locationErrorProvider.notifier).state = e;
         }
         await _persist(loc);
+        ref.read(gamificationProvider.notifier).track('location');
       });
 
   /// No-ops until a location exists — the picker only appears once one does.

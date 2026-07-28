@@ -879,12 +879,7 @@ void main() {
   // …and, scrolled down, "sem preço neste mercado" on what CONDOR doesn't carry
   // plus the market ranking (coverage first, partial total labelled as partial).
   testWidgets('shots — lista, ranking de mercados', (tester) async {
-    await listaShot(
-      tester,
-      'lista_mercado',
-      listStore: '1',
-      after: () => scrollAndTap(tester, 'Procurar Mercados', 1100),
-    );
+    await listaShot(tester, 'lista_mercado', listStore: '1');
   });
 
   // Phase 10 (Mercado) has no shot here, same as Phase 3's ScanScreen: the

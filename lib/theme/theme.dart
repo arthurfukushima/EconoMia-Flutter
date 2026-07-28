@@ -36,6 +36,15 @@ ThemeData buildTheme() {
     textTheme: SaText.theme.apply(bodyColor: sa.ink, displayColor: sa.ink),
     scaffoldBackgroundColor: sa.paper,
     splashFactory: InkSparkle.splashFactory,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: _SaPageTransitionsBuilder(),
+        TargetPlatform.iOS: _SaPageTransitionsBuilder(),
+        TargetPlatform.macOS: _SaPageTransitionsBuilder(),
+        TargetPlatform.windows: _SaPageTransitionsBuilder(),
+        TargetPlatform.linux: _SaPageTransitionsBuilder(),
+      },
+    ),
 
     appBarTheme: AppBarTheme(
       backgroundColor: sa.paper,
@@ -60,7 +69,11 @@ ThemeData buildTheme() {
       ),
     ),
 
-    dividerTheme: DividerThemeData(color: sa.stroke, thickness: 1.5, space: 1.5),
+    dividerTheme: DividerThemeData(
+      color: sa.stroke,
+      thickness: 1.5,
+      space: 1.5,
+    ),
 
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -98,4 +111,31 @@ ThemeData buildTheme() {
       ),
     ),
   );
+}
+
+class _SaPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _SaPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+
+    final curved = CurvedAnimation(parent: animation, curve: SaMotion.easeOut);
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.035),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      ),
+    );
+  }
 }

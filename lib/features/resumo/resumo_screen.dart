@@ -21,11 +21,15 @@ class ResumoScreen extends ConsumerWidget {
     final sa = Theme.of(context).sa;
 
     return switch (async) {
-      AsyncData(:final value) when value.notesCount < 3 => const _NeedsMoreNotes(),
+      AsyncData(:final value) when value.notesCount < 3 =>
+        const _NeedsMoreNotes(),
       AsyncData(:final value) => _ResumoBody(insights: value),
       AsyncError() => Center(
-          child: Text('Não foi possível montar o resumo.', style: TextStyle(color: sa.danger)),
+        child: Text(
+          'Não foi possível montar o resumo.',
+          style: TextStyle(color: sa.danger),
         ),
+      ),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }
@@ -47,9 +51,13 @@ class _NeedsMoreNotes extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('🐱', style: theme.textTheme.displaySmall),
+            Icon(Icons.pets_rounded, size: 46, color: sa.ink),
             const SizedBox(height: 14),
-            Text('Escaneie mais algumas notas', style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
+            Text(
+              'Escaneie mais algumas notas',
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 6),
             Text(
               'Com 3 ou mais compras eu começo a mostrar onde vai seu dinheiro e onde dá pra economizar.',
@@ -90,25 +98,39 @@ class _ResumoBody extends StatelessWidget {
         children: [
           _SavingsHero(insights: insights),
           const SizedBox(height: 22),
-          Text('ONDE VAI SEU DINHEIRO', style: SaText.sectionLabel.copyWith(color: sa.muted)),
+          Text(
+            'ONDE VAI SEU DINHEIRO',
+            style: SaText.sectionLabel.copyWith(color: sa.muted),
+          ),
           const SizedBox(height: 10),
           if (byCategory.isNotEmpty) ...[
             Text(
-              '${byCategory.first.cat.emoji} ${byCategory.first.cat.label} levam ${byCategory.first.pct}% da sua compra.',
+              '${byCategory.first.cat.label} levam ${byCategory.first.pct}% da sua compra.',
               style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
             ),
             const SizedBox(height: 10),
-            CardList(children: [
-              for (final c in byCategory) _CategoryRow(spend: c, maxCents: byCategory.first.spentCents),
-            ]),
+            CardList(
+              children: [
+                for (final c in byCategory)
+                  _CategoryRow(spend: c, maxCents: byCategory.first.spentCents),
+              ],
+            ),
           ],
           const SizedBox(height: 22),
-          Text('CAMPEÕES DA DESPENSA', style: SaText.sectionLabel.copyWith(color: sa.muted)),
+          Text(
+            'CAMPEÕES DA DESPENSA',
+            style: SaText.sectionLabel.copyWith(color: sa.muted),
+          ),
           const SizedBox(height: 10),
-          CardList(children: [for (final it in topItems.take(5)) _ItemRow(item: it)]),
+          CardList(
+            children: [for (final it in topItems.take(5)) _ItemRow(item: it)],
+          ),
           if (fav != null) ...[
             const SizedBox(height: 22),
-            Text('SEU MERCADO', style: SaText.sectionLabel.copyWith(color: sa.muted)),
+            Text(
+              'SEU MERCADO',
+              style: SaText.sectionLabel.copyWith(color: sa.muted),
+            ),
             const SizedBox(height: 10),
             Text(
               '${fav.visits}× no ${fav.name} · ${formatBRL(fav.spentCents)} no total.',
@@ -117,7 +139,8 @@ class _ResumoBody extends StatelessWidget {
             if (bestAlt != null && bestAlt.name != fav.name) ...[
               const SizedBox(height: 10),
               _DicaCard(
-                text: 'Somando suas notas, você teria economizado '
+                text:
+                    'Somando suas notas, você teria economizado '
                     '${formatBRL(bestAlt.savedCents)} levando os mesmos itens no ${bestAlt.name}.',
               ),
             ],
@@ -126,7 +149,10 @@ class _ResumoBody extends StatelessWidget {
           Text(
             'Baseado em ${insights.notesCount} nota(s), ${insights.pricedNotesCount} com preços comparados. '
             'Os números mudam a cada nota escaneada.',
-            style: theme.textTheme.bodySmall!.copyWith(color: sa.muted, fontStyle: FontStyle.italic),
+            style: theme.textTheme.bodySmall!.copyWith(
+              color: sa.muted,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
       ),
@@ -148,25 +174,42 @@ class _SavingsHero extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: sa.forest, borderRadius: SaRadius.xlAll, boxShadow: sa.lift),
+      decoration: BoxDecoration(
+        color: sa.forest,
+        borderRadius: SaRadius.xlAll,
+        boxShadow: sa.lift,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('💰 DÁ PRA ECONOMIZAR', style: SaText.heroLabel.copyWith(color: sa.amber)),
+          Text(
+            'DÁ PRA ECONOMIZAR',
+            style: SaText.heroLabel.copyWith(color: sa.amber),
+          ),
           const SizedBox(height: 4),
-          Text(formatBRL(insights.totalSavedCents), style: theme.textTheme.displaySmall!.copyWith(color: sa.paper)),
+          Text(
+            formatBRL(insights.totalSavedCents),
+            style: theme.textTheme.displaySmall!.copyWith(color: sa.paper),
+          ),
           const SizedBox(height: 4),
           Text.rich(
             TextSpan(
-              style: theme.textTheme.bodySmall!
-                  .copyWith(color: sa.paper.withValues(alpha: 0.72), fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodySmall!.copyWith(
+                color: sa.paper.withValues(alpha: 0.72),
+                fontWeight: FontWeight.w600,
+              ),
               children: [
-                const TextSpan(text: 'Preços melhores que a Mia achou nas suas notas.'),
+                const TextSpan(
+                  text: 'Preços melhores que a Mia achou nas suas notas.',
+                ),
                 if (insights.projectedAnnualCents > 0) ...[
                   const TextSpan(text: ' No seu ritmo, dá '),
                   TextSpan(
                     text: formatBRL(insights.projectedAnnualCents),
-                    style: TextStyle(color: sa.mint, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      color: sa.mint,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const TextSpan(text: ' por ano.'),
                 ],
@@ -202,7 +245,7 @@ class _CategoryRow extends StatelessWidget {
         SizedBox(
           width: 96,
           child: Text(
-            '${spend.cat.emoji} ${spend.cat.label}',
+            spend.cat.label,
             style: theme.textTheme.labelMedium,
             overflow: TextOverflow.ellipsis,
           ),
@@ -219,7 +262,9 @@ class _CategoryRow extends StatelessWidget {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: maxCents > 0 ? (spend.spentCents / maxCents).clamp(0.03, 1.0) : 0.03,
+              widthFactor: maxCents > 0
+                  ? (spend.spentCents / maxCents).clamp(0.03, 1.0)
+                  : 0.03,
               child: Container(color: sa.green),
             ),
           ),
@@ -230,7 +275,10 @@ class _CategoryRow extends StatelessWidget {
             style: theme.textTheme.labelMedium,
             children: [
               TextSpan(text: formatBRL(spend.spentCents)),
-              TextSpan(text: ' · ${spend.pct}%', style: TextStyle(color: sa.muted)),
+              TextSpan(
+                text: ' · ${spend.pct}%',
+                style: TextStyle(color: sa.muted),
+              ),
             ],
           ),
         ),
@@ -259,7 +307,11 @@ class _ItemRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(item.name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+              Text(
+                item.name,
+                style: theme.textTheme.titleSmall,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 2),
               Text(
                 '${formatBRL(item.spentCents)} no total'
@@ -272,8 +324,14 @@ class _ItemRow extends StatelessWidget {
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-          decoration: BoxDecoration(color: sa.tintAmber, borderRadius: SaRadius.pill),
-          child: Text('${item.count}×', style: theme.textTheme.labelMedium!.copyWith(color: sa.amberPress)),
+          decoration: BoxDecoration(
+            color: sa.tintAmber,
+            borderRadius: SaRadius.pill,
+          ),
+          child: Text(
+            '${item.count}×',
+            style: theme.textTheme.labelMedium!.copyWith(color: sa.amberPress),
+          ),
         ),
       ],
     );
@@ -294,11 +352,14 @@ class _DicaCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: sa.tintAmber, borderRadius: SaRadius.mdAll),
+      decoration: BoxDecoration(
+        color: sa.tintAmber,
+        borderRadius: SaRadius.mdAll,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('🐱', style: theme.textTheme.titleLarge),
+          Icon(Icons.pets_rounded, size: 24, color: sa.ink),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

@@ -39,8 +39,11 @@ class ReceiptScreen extends ConsumerWidget {
       body: switch ((receipt, async)) {
         (final Receipt r, _) => _ReceiptBody(receipt: r),
         (_, AsyncError()) => Center(
-            child: Text('Não foi possível abrir esta nota.', style: TextStyle(color: sa.danger)),
+          child: Text(
+            'Não foi possível abrir esta nota.',
+            style: TextStyle(color: sa.danger),
           ),
+        ),
         (_, AsyncLoading()) => const Center(child: CircularProgressIndicator()),
         _ => const Center(child: Text('Nota não encontrada.')),
       },
@@ -73,11 +76,14 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => _StorePickerSheet(options: options, selectedCod: _storeCod),
+      builder: (context) =>
+          _StorePickerSheet(options: options, selectedCod: _storeCod),
     );
     // null means the sheet was dismissed without a choice; '' is the explicit
     // "Mais barato por perto" pick, distinct from "no change".
-    if (result != null) setState(() => _storeCod = result.isEmpty ? null : result);
+    if (result != null) {
+      setState(() => _storeCod = result.isEmpty ? null : result);
+    }
   }
 
   @override
@@ -118,7 +124,9 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
         ? receipt.header.totalCents
         : items.fold<int>(0, (s, it) => s + it.lineTotalCents);
 
-    final options = priced && !_pricing ? storeOptions(items) : const <StoreOption>[];
+    final options = priced && !_pricing
+        ? storeOptions(items)
+        : const <StoreOption>[];
     StoreOption? selectedStore;
     for (final o in options) {
       if (o.cod == _storeCod) {
@@ -128,11 +136,16 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
     }
 
     final offers = ref.watch(offersProvider).value ?? const [];
-    final trends = offers.isEmpty ? const <Trend>[] : cheapDayByCategory(offers);
+    final trends = offers.isEmpty
+        ? const <Trend>[]
+        : cheapDayByCategory(offers);
     final pwd = purchaseWeekday(receipt);
     final dayTips = <({Categoria cat, Trend t})>[];
     if (priced && !_pricing && !_tipOff && pwd != null && trends.isNotEmpty) {
-      final cats = {for (final it in items) classify(description: it.description, ncm: it.ncm)};
+      final cats = {
+        for (final it in items)
+          classify(description: it.description, ncm: it.ncm),
+      };
       for (final cat in cats) {
         if (cat == Categoria.outros) continue;
         final t = cheapDayFor(trends, cat, receipt.header.storeName);
@@ -143,10 +156,20 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       children: [
-        _Summary(receipt: receipt, total: total, savings: savings, pricing: _pricing, onRetry: _price),
+        _Summary(
+          receipt: receipt,
+          total: total,
+          savings: savings,
+          pricing: _pricing,
+          onRetry: _price,
+        ),
         const SizedBox(height: 18),
         if (dayTips.isNotEmpty)
-          _DayTip(tips: dayTips, pwd: pwd!, onDismiss: () => setState(() => _tipOff = true)),
+          _DayTip(
+            tips: dayTips,
+            pwd: pwd!,
+            onDismiss: () => setState(() => _tipOff = true),
+          ),
         if (items.isNotEmpty) _CategoryBreakdown(items: items),
         if (priced && !_pricing && options.isNotEmpty) ...[
           _StorePickerRow(
@@ -159,7 +182,10 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
           if (selectedStore != null)
             _StoreBasket(items: items, store: selectedStore, total: total)
           else ...[
-            Text('Mais barato por perto (${savings.compared.length})', style: theme.textTheme.titleMedium),
+            Text(
+              'Mais barato por perto (${savings.compared.length})',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             if (savings.compared.isEmpty)
               Text(
@@ -167,7 +193,11 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
                 style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
               )
             else
-              CardList(children: [for (final c in savings.compared) _ComparedRow(compared: c)]),
+              CardList(
+                children: [
+                  for (final c in savings.compared) _ComparedRow(compared: c),
+                ],
+              ),
             const SizedBox(height: 10),
             Text(
               'Preços de notas fiscais recentes na sua região. Itens “aprox.” são '
@@ -176,7 +206,10 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
             ),
             if (savings.uncompared.isNotEmpty) ...[
               const SizedBox(height: 18),
-              Text('Não comparados (${savings.uncompared.length})', style: theme.textTheme.titleMedium),
+              Text(
+                'Não comparados (${savings.uncompared.length})',
+                style: theme.textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               CardList(
                 children: [
@@ -187,7 +220,10 @@ class _ReceiptBodyState extends ConsumerState<_ReceiptBody> {
             ],
           ],
         ] else ...[
-          Text('Itens da nota (${items.length})', style: theme.textTheme.titleMedium),
+          Text(
+            'Itens da nota (${items.length})',
+            style: theme.textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           CardList(
             children: [
@@ -232,7 +268,10 @@ class _Summary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (storeLabel.isNotEmpty) ...[
-          Text(storeLabel, style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+          Text(
+            storeLabel,
+            style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+          ),
           const SizedBox(height: 4),
         ],
         Text.rich(
@@ -240,8 +279,14 @@ class _Summary extends StatelessWidget {
             style: theme.textTheme.bodyMedium,
             children: [
               const TextSpan(text: 'Total da nota: '),
-              TextSpan(text: formatBRL(total), style: theme.textTheme.titleMedium),
-              TextSpan(text: ' · ${receipt.items.length} ${receipt.items.length == 1 ? 'item' : 'itens'}'),
+              TextSpan(
+                text: formatBRL(total),
+                style: theme.textTheme.titleMedium,
+              ),
+              TextSpan(
+                text:
+                    ' · ${receipt.items.length} ${receipt.items.length == 1 ? 'item' : 'itens'}',
+              ),
             ],
           ),
         ),
@@ -279,17 +324,26 @@ class _Summary extends StatelessWidget {
       // No location yet is the ordinary first-scan state; a location that is
       // set and still unpriced means the pass failed.
       final consumer = Consumer(
-        builder: (context, ref, _) => ref.watch(locationControllerProvider) == null
-            ? Text('Informe seu CEP acima para comparar preços na sua região.', style: muted)
+        builder: (context, ref, _) =>
+            ref.watch(locationControllerProvider) == null
+            ? Text(
+                'Informe seu CEP acima para comparar preços na sua região.',
+                style: muted,
+              )
             : Row(
                 children: [
                   Flexible(
                     child: Text(
                       'Não foi possível comparar os preços agora.',
-                      style: theme.textTheme.labelMedium!.copyWith(color: sa.danger),
+                      style: theme.textTheme.labelMedium!.copyWith(
+                        color: sa.danger,
+                      ),
                     ),
                   ),
-                  TextButton(onPressed: onRetry, child: const Text('tentar de novo')),
+                  TextButton(
+                    onPressed: onRetry,
+                    child: const Text('tentar de novo'),
+                  ),
                 ],
               ),
       );
@@ -303,7 +357,8 @@ class _Summary extends StatelessWidget {
           children: [
             const TextSpan(text: 'Dá pra economizar '),
             TextSpan(
-              text: '${formatBRL(savings.totalSavedCents)} (${savedPct(savings.totalSavedCents, total)}%)',
+              text:
+                  '${formatBRL(savings.totalSavedCents)} (${savedPct(savings.totalSavedCents, total)}%)',
               style: theme.textTheme.titleMedium!.copyWith(color: sa.green),
             ),
             const TextSpan(text: ' comprando por perto'),
@@ -355,7 +410,9 @@ class _ComparedRow extends StatelessWidget {
                     if (approx)
                       TextSpan(
                         text: ' aprox.',
-                        style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                        style: theme.textTheme.labelMedium!.copyWith(
+                          color: sa.muted,
+                        ),
                       ),
                   ],
                 ),
@@ -396,9 +453,14 @@ class _PlainRow extends StatelessWidget {
       children: [
         CatChip(description: item.description, ncm: item.ncm),
         const SizedBox(width: 8),
-        Expanded(child: Text(item.description, style: theme.textTheme.bodyMedium)),
+        Expanded(
+          child: Text(item.description, style: theme.textTheme.bodyMedium),
+        ),
         const SizedBox(width: 8),
-        Text(trailing, style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+        Text(
+          trailing,
+          style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+        ),
       ],
     );
   }
@@ -407,7 +469,11 @@ class _PlainRow extends StatelessWidget {
 /// "You bought produce on a day it's usually dearer" — one line per flagged
 /// category, dismissible for the rest of this screen visit.
 class _DayTip extends StatelessWidget {
-  const _DayTip({required this.tips, required this.pwd, required this.onDismiss});
+  const _DayTip({
+    required this.tips,
+    required this.pwd,
+    required this.onDismiss,
+  });
 
   final List<({Categoria cat, Trend t})> tips;
   final int pwd;
@@ -421,19 +487,33 @@ class _DayTip extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.fromLTRB(14, 12, 40, 12),
-      decoration: BoxDecoration(color: sa.tintAmber, borderRadius: SaRadius.mdAll),
+      decoration: BoxDecoration(
+        color: sa.tintAmber,
+        borderRadius: SaRadius.mdAll,
+      ),
       child: Stack(
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('💡 Dica de dia', style: theme.textTheme.titleSmall),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline_rounded,
+                    size: 19,
+                    color: sa.ink,
+                  ),
+                  const SizedBox(width: 6),
+                  Text('Dica de dia', style: theme.textTheme.titleSmall),
+                ],
+              ),
               const SizedBox(height: 6),
               for (final tip in tips)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(
-                    'Você comprou ${tip.cat.emoji} ${tip.cat.label.toLowerCase()} ${numDiaSemana(pwd)}. '
+                    'Você comprou ${tip.cat.label.toLowerCase()} ${numDiaSemana(pwd)}. '
                     '${tip.t.store != null ? "No ${tip.t.store}" : "Por perto"} '
                     'costuma sair mais barato ${emDiaSemana(tip.t.weekday)}.',
                     style: theme.textTheme.bodyMedium,
@@ -472,9 +552,17 @@ class _CategoryBreakdown extends StatelessWidget {
 
     final groups = <Categoria, List<ReceiptItem>>{};
     for (final it in items) {
-      groups.putIfAbsent(classify(description: it.description, ncm: it.ncm), () => []).add(it);
+      groups
+          .putIfAbsent(
+            classify(description: it.description, ncm: it.ncm),
+            () => [],
+          )
+          .add(it);
     }
-    final present = [for (final c in Categoria.values) if (groups[c] != null) c];
+    final present = [
+      for (final c in Categoria.values)
+        if (groups[c] != null) c,
+    ];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
@@ -492,7 +580,10 @@ class _CategoryBreakdown extends StatelessWidget {
           data: theme.copyWith(dividerColor: Colors.transparent),
           child: ExpansionTile(
             tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-            title: Text('Categorias da nota (${present.length})', style: theme.textTheme.titleSmall),
+            title: Text(
+              'Categorias da nota (${present.length})',
+              style: theme.textTheme.titleSmall,
+            ),
             children: [
               for (final cat in present)
                 Padding(
@@ -500,13 +591,18 @@ class _CategoryBreakdown extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${cat.emoji} ${cat.label} (${groups[cat]!.length})', style: theme.textTheme.labelLarge),
+                      Text(
+                        '${cat.label} (${groups[cat]!.length})',
+                        style: theme.textTheme.labelLarge,
+                      ),
                       for (final it in groups[cat]!)
                         Padding(
                           padding: const EdgeInsets.only(top: 2, left: 4),
                           child: Text(
                             it.description,
-                            style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                            style: theme.textTheme.labelMedium!.copyWith(
+                              color: sa.muted,
+                            ),
                           ),
                         ),
                     ],
@@ -532,7 +628,9 @@ class _StorePickerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sa = theme.sa;
-    final label = selected == null ? 'Mais barato por perto' : (selected!.name ?? 'Loja');
+    final label = selected == null
+        ? 'Mais barato por perto'
+        : (selected!.name ?? 'Loja');
 
     return Material(
       color: sa.paper2,
@@ -544,9 +642,16 @@ class _StorePickerRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              Text('Comparar com: ', style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+              Text(
+                'Comparar com: ',
+                style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+              ),
               Expanded(
-                child: Text(label, style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodyMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Icon(Icons.expand_more_rounded, color: sa.muted),
             ],
@@ -584,7 +689,9 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
         ? widget.options
         : [
             for (final o in widget.options)
-              if (norm('${o.name ?? ''} ${o.bairro ?? ''}').contains(q) || o.cod == widget.selectedCod) o,
+              if (norm('${o.name ?? ''} ${o.bairro ?? ''}').contains(q) ||
+                  o.cod == widget.selectedCod)
+                o,
           ];
 
     return SafeArea(
@@ -599,7 +706,9 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
             const SizedBox(height: 12),
             if (widget.options.length > 6)
               TextField(
-                decoration: const InputDecoration(hintText: 'Filtrar lojas por nome…'),
+                decoration: const InputDecoration(
+                  hintText: 'Filtrar lojas por nome…',
+                ),
                 onChanged: (v) => setState(() => _query = v),
               ),
             const SizedBox(height: 4),
@@ -615,7 +724,10 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
                   ),
                   for (final o in visible)
                     _StorePickerOption(
-                      title: [o.name ?? 'Loja', if ((o.bairro ?? '').isNotEmpty) o.bairro!].join(' · '),
+                      title: [
+                        o.name ?? 'Loja',
+                        if ((o.bairro ?? '').isNotEmpty) o.bairro!,
+                      ].join(' · '),
                       subtitle: _savingsLabel(o),
                       selected: o.cod == widget.selectedCod,
                       onTap: () => Navigator.pop(context, o.cod),
@@ -631,7 +743,9 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
 
   String _savingsLabel(StoreOption o) {
     final count = '${o.itemsCovered} ${o.itemsCovered == 1 ? "item" : "itens"}';
-    if (o.savedCents > 0) return 'economiza ${formatBRL(o.savedCents)} ($count)';
+    if (o.savedCents > 0) {
+      return 'economiza ${formatBRL(o.savedCents)} ($count)';
+    }
     if (o.savedCents < 0) return '${formatBRL(-o.savedCents)} a mais ($count)';
     return 'mesmo preço ($count)';
   }
@@ -659,7 +773,10 @@ class _StorePickerOption extends StatelessWidget {
       title: Text(title, style: theme.textTheme.bodyMedium),
       subtitle: subtitle == null
           ? null
-          : Text(subtitle!, style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+          : Text(
+              subtitle!,
+              style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+            ),
       trailing: selected ? Icon(Icons.check_rounded, color: sa.amber) : null,
       onTap: onTap,
     );
@@ -669,7 +786,11 @@ class _StorePickerOption extends StatelessWidget {
 /// The whole receipt priced at one store: total there, coverage, and
 /// per-item deltas — green when cheaper here, red when dearer.
 class _StoreBasket extends StatelessWidget {
-  const _StoreBasket({required this.items, required this.store, required this.total});
+  const _StoreBasket({
+    required this.items,
+    required this.store,
+    required this.total,
+  });
 
   final List<ReceiptItem> items;
   final StoreOption store;
@@ -680,8 +801,14 @@ class _StoreBasket extends StatelessWidget {
     final theme = Theme.of(context);
     final sa = theme.sa;
     final basket = basketForStore(items, store.cod);
-    final covered = [for (final l in basket.lines) if (l.offer != null) l];
-    final missing = [for (final l in basket.lines) if (l.offer == null) l];
+    final covered = [
+      for (final l in basket.lines)
+        if (l.offer != null) l,
+    ];
+    final missing = [
+      for (final l in basket.lines)
+        if (l.offer == null) l,
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -691,8 +818,12 @@ class _StoreBasket extends StatelessWidget {
             style: theme.textTheme.bodyMedium,
             children: [
               const TextSpan(text: 'Comprando tudo na '),
-              TextSpan(text: store.name ?? 'loja', style: theme.textTheme.titleSmall),
-              if ((store.bairro ?? '').isNotEmpty) TextSpan(text: ' · ${store.bairro}'),
+              TextSpan(
+                text: store.name ?? 'loja',
+                style: theme.textTheme.titleSmall,
+              ),
+              if ((store.bairro ?? '').isNotEmpty)
+                TextSpan(text: ' · ${store.bairro}'),
             ],
           ),
         ),
@@ -701,7 +832,10 @@ class _StoreBasket extends StatelessWidget {
           TextSpan(
             style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
             children: [
-              TextSpan(text: '${basket.coveredCount} de ${basket.itemCount} itens · total dos comparados '),
+              TextSpan(
+                text:
+                    '${basket.coveredCount} de ${basket.itemCount} itens · total dos comparados ',
+              ),
               TextSpan(
                 text: formatBRL(basket.storeTotalCents),
                 style: theme.textTheme.labelMedium!.copyWith(color: sa.ink),
@@ -717,7 +851,8 @@ class _StoreBasket extends StatelessWidget {
               children: [
                 const TextSpan(text: 'Você economizaria '),
                 TextSpan(
-                  text: '${formatBRL(basket.totalSavedCents)} (${savedPct(basket.totalSavedCents, total)}%)',
+                  text:
+                      '${formatBRL(basket.totalSavedCents)} (${savedPct(basket.totalSavedCents, total)}%)',
                   style: theme.textTheme.titleMedium!.copyWith(color: sa.green),
                 ),
                 const TextSpan(text: ' nos itens comparados'),
@@ -732,14 +867,19 @@ class _StoreBasket extends StatelessWidget {
                 const TextSpan(text: 'Você pagaria '),
                 TextSpan(
                   text: formatBRL(-basket.totalSavedCents),
-                  style: theme.textTheme.titleMedium!.copyWith(color: sa.danger),
+                  style: theme.textTheme.titleMedium!.copyWith(
+                    color: sa.danger,
+                  ),
                 ),
                 const TextSpan(text: ' a mais nos itens comparados'),
               ],
             ),
           ),
         const SizedBox(height: 18),
-        Text('Nesta loja (${covered.length})', style: theme.textTheme.titleMedium),
+        Text(
+          'Nesta loja (${covered.length})',
+          style: theme.textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         if (covered.isEmpty)
           Text(
@@ -755,11 +895,15 @@ class _StoreBasket extends StatelessWidget {
         ),
         if (missing.isNotEmpty) ...[
           const SizedBox(height: 18),
-          Text('Não vendidos nesta loja (${missing.length})', style: theme.textTheme.titleMedium),
+          Text(
+            'Não vendidos nesta loja (${missing.length})',
+            style: theme.textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           CardList(
             children: [
-              for (final l in missing) _PlainRow(item: l.item, trailing: 'sem preço recente aqui'),
+              for (final l in missing)
+                _PlainRow(item: l.item, trailing: 'sem preço recente aqui'),
             ],
           ),
         ],
@@ -806,8 +950,12 @@ class _BasketRow extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          over ? '+${formatBRL(-line.lineDeltaCents)}' : '−${formatBRL(line.lineDeltaCents)}',
-          style: theme.textTheme.titleMedium!.copyWith(color: over ? sa.danger : sa.green),
+          over
+              ? '+${formatBRL(-line.lineDeltaCents)}'
+              : '−${formatBRL(line.lineDeltaCents)}',
+          style: theme.textTheme.titleMedium!.copyWith(
+            color: over ? sa.danger : sa.green,
+          ),
         ),
       ],
     );

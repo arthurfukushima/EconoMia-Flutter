@@ -30,6 +30,8 @@ class Prefs {
   static const _locationKey = 'economia.location';
   static const _currentStoreKey = 'economia.currentStore';
   static const _productSearchHistoryKey = 'economia.productSearchHistory';
+  static const _miaPointsKey = 'economia.miaPoints';
+  static const _questsKey = 'economia.quests';
   static const _searchHistoryMax = 8;
 
   /// The list index and which one is on screen.
@@ -65,6 +67,14 @@ class Prefs {
   Future<void> setCurrentStore(String? cod) => cod == null
       ? _prefs.remove(_currentStoreKey)
       : _prefs.setString(_currentStoreKey, cod);
+
+  int get miaPoints => _prefs.getInt(_miaPointsKey) ?? 0;
+
+  Future<void> setMiaPoints(int points) => _prefs.setInt(_miaPointsKey, points < 0 ? 0 : points);
+
+  String? get questsJson => _prefs.getString(_questsKey);
+
+  Future<void> setQuestsJson(String value) => _prefs.setString(_questsKey, value);
 
   // ---------------------------------------------------------------------------
   // Shopping lists

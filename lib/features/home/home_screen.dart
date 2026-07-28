@@ -7,12 +7,19 @@ import '../../domain/insights.dart';
 import '../../domain/tendencias.dart';
 import '../../theme/fonts.dart';
 import '../../theme/tokens.dart';
+import '../../widgets/staggered_entrance.dart';
 import '../lista/lista_controller.dart';
+import '../gamification/gamification_controller.dart';
+import '../../domain/quests.dart';
 import 'home_controller.dart';
 
 String _greeting() {
   final h = DateTime.now().hour;
-  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  return h < 12
+      ? 'Bom dia'
+      : h < 18
+      ? 'Boa tarde'
+      : 'Boa noite';
 }
 
 const _zeroInsights = (
@@ -34,32 +41,241 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final Insights insights = ref.watch(homeInsightsProvider).value ?? _zeroInsights;
+    ref.watch(gamificationProvider);
+    final gamification = ref.read(gamificationProvider.notifier);
+    final Insights insights =
+        ref.watch(homeInsightsProvider).value ?? _zeroInsights;
     final trends = ref.watch(homeTrendsProvider).value ?? const <Trend>[];
     final todayWd = DateTime.now().weekday % 7;
-    final todayTrends = [for (final t in trends) if (t.weekday == todayWd) t];
+    final todayTrends = [
+      for (final t in trends)
+        if (t.weekday == todayWd) t,
+    ];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${_greeting()} 👋', style: Theme.of(context).textTheme.titleMedium),
+          Text(_greeting(), style: Theme.of(context).textTheme.titleMedium),
+          StaggeredEntrance(
+            index: 1,
+            child: Semantics(
+              label: '${gamification.points} pontos Mia',
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _PointsPill(points: gamification.points),
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
-          _SavingsHero(insights: insights),
+          StaggeredEntrance(index: 2, child: _SavingsHero(insights: insights)),
           const SizedBox(height: 22),
-          Text('ATALHOS', style: SaText.sectionLabel.copyWith(color: Theme.of(context).sa.muted)),
+          Text(
+            'ATALHOS',
+            style: SaText.sectionLabel.copyWith(
+              color: Theme.of(context).sa.muted,
+            ),
+          ),
           const SizedBox(height: 10),
-          _AtalhosGrid(
-            insights: insights,
-            todayCount: todayTrends.length,
-            // Unchecked, not total: the tile answers "what's still to buy?".
-            listCount: ref.watch(listaControllerProvider).where((it) => !it.checked).length,
+          StaggeredEntrance(
+            index: 4,
+            child: _AtalhosGrid(
+              insights: insights,
+              todayCount: todayTrends.length,
+              // Unchecked, not total: the tile answers "what's still to buy?".
+              listCount: ref
+                  .watch(listaControllerProvider)
+                  .where((it) => !it.checked)
+                  .length,
+            ),
           ),
           const SizedBox(height: 22),
-          Text('DICA DA MIA', style: SaText.sectionLabel.copyWith(color: Theme.of(context).sa.muted)),
+          StaggeredEntrance(
+            index: 5,
+            child: _QuestBoard(
+              view: gamification.view(),
+              onClaim: gamification.claim,
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'DICA DA MIA',
+            style: SaText.sectionLabel.copyWith(
+              color: Theme.of(context).sa.muted,
+            ),
+          ),
           const SizedBox(height: 10),
-          _DicaDaMia(top: todayTrends.isEmpty ? null : todayTrends.first),
+          StaggeredEntrance(
+            index: 7,
+            child: _DicaDaMia(
+              top: todayTrends.isEmpty ? null : todayTrends.first,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PointsPill extends StatelessWidget {
+  const _PointsPill({required this.points});
+  final int points;
+  @override
+  Widget build(BuildContext context) {
+    final sa = Theme.of(context).sa;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+      decoration: BoxDecoration(
+        color: sa.paper2,
+        borderRadius: SaRadius.pill,
+        boxShadow: sa.liftSm,
+      ),
+      child: Text(
+        '$points pts',
+        style: Theme.of(context).textTheme.labelLarge!.copyWith(
+          color: sa.forest,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _QuestBoard extends StatelessWidget {
+  const _QuestBoard({required this.view, required this.onClaim});
+  final QuestView view;
+  final ValueChanged<String> onClaim;
+  String _renew(Duration d) =>
+      d.inHours > 36 ? '${(d.inHours / 24).ceil()}d' : '${d.inHours.ceil()}h';
+  @override
+  Widget build(BuildContext context) {
+    final ready = [
+      ...view.daily,
+      ...view.weekly,
+      ...view.ftue,
+    ].where((q) => q.done && !q.claimed).length;
+    final groups = <({String title, List<QuestRow> rows, String? hint})>[
+      (
+        title: 'Diárias',
+        rows: view.daily,
+        hint: 'renova em ${_renew(view.dailyIn)}',
+      ),
+      (
+        title: 'Semanais',
+        rows: view.weekly,
+        hint: 'renova em ${_renew(view.weeklyIn)}',
+      ),
+      (title: 'Primeiros passos', rows: view.ftue, hint: null),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'MISSÕES DA MIA${ready > 0 ? ' · $ready para resgatar' : ''}',
+          style: SaText.sectionLabel.copyWith(
+            color: Theme.of(context).sa.muted,
+          ),
+        ),
+        const SizedBox(height: 10),
+        for (final group in groups)
+          if (group.rows.isNotEmpty) ...[
+            Text(
+              '${group.title}${group.hint == null ? '' : ' · ${group.hint}'}',
+              style: Theme.of(context).textTheme.labelMedium!.copyWith(
+                color: Theme.of(context).sa.muted,
+              ),
+            ),
+            const SizedBox(height: 5),
+            ...[
+              for (final row in group.rows)
+                _QuestRow(row: row, onClaim: onClaim),
+            ],
+            const SizedBox(height: 8),
+          ],
+      ],
+    );
+  }
+}
+
+IconData _questIcon(String event) => switch (event) {
+  'note' => Icons.receipt_long_rounded,
+  'product' => Icons.sell_rounded,
+  'list_add' => Icons.add_shopping_cart_rounded,
+  'list_check' => Icons.check_circle_rounded,
+  'mercado' => Icons.storefront_rounded,
+  'location' => Icons.my_location_rounded,
+  _ => Icons.stars_rounded,
+};
+
+class _QuestRow extends StatelessWidget {
+  const _QuestRow({required this.row, required this.onClaim});
+  final QuestRow row;
+  final ValueChanged<String> onClaim;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: sa.paper,
+        borderRadius: SaRadius.mdAll,
+        border: Border.all(color: row.done ? sa.stroke2 : sa.stroke),
+      ),
+      child: Row(
+        children: [
+          Semantics(
+            label: row.definition.label,
+            excludeSemantics: true,
+            child: Icon(
+              _questIcon(row.definition.event),
+              size: 19,
+              color: sa.ink,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row.definition.label,
+                  style: theme.textTheme.bodySmall!.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: SaRadius.pill,
+                  child: LinearProgressIndicator(
+                    value: row.progress / row.definition.goal,
+                    minHeight: 5,
+                    backgroundColor: sa.paper2,
+                    color: row.done ? sa.green : sa.amber,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 9),
+          if (row.claimed)
+            Text(
+              '✓ resgatado',
+              style: theme.textTheme.labelSmall!.copyWith(color: sa.green),
+            )
+          else if (row.done)
+            TextButton(
+              onPressed: () => onClaim(row.definition.id),
+              child: Text('Resgatar +${row.definition.points}'),
+            )
+          else
+            Text(
+              '${row.progress}/${row.definition.goal}\n+${row.definition.points}',
+              textAlign: TextAlign.right,
+              style: theme.textTheme.labelSmall!.copyWith(color: sa.muted),
+            ),
         ],
       ),
     );
@@ -82,7 +298,11 @@ class _SavingsHero extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: sa.forest, borderRadius: SaRadius.xlAll, boxShadow: sa.lift),
+      decoration: BoxDecoration(
+        color: sa.forest,
+        borderRadius: SaRadius.xlAll,
+        boxShadow: sa.lift,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -91,16 +311,22 @@ class _SavingsHero extends StatelessWidget {
             height: 64,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: sa.forestDeep,
+              color: sa.paper,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: sa.paper.withValues(alpha: 0.14), width: 1.5),
+              border: Border.all(
+                color: sa.paper.withValues(alpha: 0.14),
+                width: 1.5,
+              ),
             ),
-            child: Image.asset('assets/img/mia_logo_android.png', fit: BoxFit.cover),
+            child: Image.asset('assets/img/mia-icon.png', fit: BoxFit.contain),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: saved > 0
-                ? _SavingsCopy(saved: saved, projected: insights.projectedAnnualCents)
+                ? _SavingsCopy(
+                    saved: saved,
+                    projected: insights.projectedAnnualCents,
+                  )
                 : const _OnboardingCopy(),
           ),
         ],
@@ -125,21 +351,33 @@ class _SavingsCopy extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('🐱 MIA · DÁ PRA ECONOMIZAR', style: SaText.heroLabel.copyWith(color: sa.amber)),
+        Text(
+          'MIA · DÁ PRA ECONOMIZAR',
+          style: SaText.heroLabel.copyWith(color: sa.amber),
+        ),
         const SizedBox(height: 3),
         Text(
           'Comprando no lugar mais barato, você guarda',
-          style: theme.textTheme.bodyMedium!
-              .copyWith(color: sa.paper.withValues(alpha: 0.80), fontWeight: FontWeight.w700),
+          style: theme.textTheme.bodyMedium!.copyWith(
+            color: sa.paper.withValues(alpha: 0.80),
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        Text(formatBRL(saved), style: theme.textTheme.headlineMedium!.copyWith(color: sa.paper)),
+        Text(
+          formatBRL(saved),
+          style: theme.textTheme.headlineMedium!.copyWith(color: sa.paper),
+        ),
         const SizedBox(height: 2),
         Text.rich(
           TextSpan(
-            style: theme.textTheme.bodySmall!
-                .copyWith(color: sa.paper.withValues(alpha: 0.66), fontWeight: FontWeight.w600),
+            style: theme.textTheme.bodySmall!.copyWith(
+              color: sa.paper.withValues(alpha: 0.66),
+              fontWeight: FontWeight.w600,
+            ),
             children: [
-              const TextSpan(text: 'São os preços melhores que achei nas suas notas.'),
+              const TextSpan(
+                text: 'São os preços melhores que achei nas suas notas.',
+              ),
               if (projected > 0) ...[
                 const TextSpan(text: ' No seu ritmo, dá '),
                 TextSpan(
@@ -168,11 +406,14 @@ class _OnboardingCopy extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('🐱 MIA', style: SaText.heroLabel.copyWith(color: sa.amber)),
+        Text('MIA', style: SaText.heroLabel.copyWith(color: sa.amber)),
         const SizedBox(height: 6),
         Text(
           'Escaneie sua primeira nota e eu começo a caçar economia pra você.',
-          style: theme.textTheme.bodyLarge!.copyWith(color: sa.paper, fontWeight: FontWeight.w700),
+          style: theme.textTheme.bodyLarge!.copyWith(
+            color: sa.paper,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
@@ -206,8 +447,9 @@ class _AtalhosGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _Tile(
-                emoji: '🛒',
+                icon: Icons.shopping_cart_rounded,
                 tint: sa.tintGreen,
+                semanticLabel: 'Lista de compras',
                 label: 'Lista de Compras',
                 meta: listCount > 0
                     ? '${_plural(listCount, "item", "itens")} pra comprar'
@@ -218,8 +460,9 @@ class _AtalhosGrid extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: _Tile(
-                emoji: '🏪',
+                icon: Icons.storefront_rounded,
                 tint: sa.paper2,
+                semanticLabel: 'Mercado',
                 label: 'No mercado',
                 meta: 'Compare preços perto',
                 onTap: () => context.push('/mercado'),
@@ -232,18 +475,22 @@ class _AtalhosGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _Tile(
-                emoji: '🔥',
+                icon: Icons.local_fire_department_rounded,
                 tint: sa.tintAmber,
+                semanticLabel: 'Ofertas',
                 label: 'Ofertas do dia',
-                meta: todayCount > 0 ? '${_plural(todayCount, "oferta", "ofertas")} hoje' : 'Melhores dias por categoria',
+                meta: todayCount > 0
+                    ? '${_plural(todayCount, "oferta", "ofertas")} hoje'
+                    : 'Melhores dias por categoria',
                 onTap: () => context.push('/ofertas'),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _Tile(
-                emoji: '🧾',
+                icon: Icons.receipt_long_rounded,
                 tint: sa.paper2,
+                semanticLabel: 'Notas fiscais',
                 label: 'Minhas Notas',
                 meta: insights.notesCount > 0
                     ? '${_plural(insights.notesCount, "nota", "notas")} · ${formatBRL(insights.totalSpentCents)}'
@@ -258,8 +505,9 @@ class _AtalhosGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _Tile(
-                emoji: '🗂️',
+                icon: Icons.category_rounded,
                 tint: sa.tintGreen,
+                semanticLabel: 'Catálogo',
                 label: 'Catálogo',
                 meta: 'Produtos por mercado',
                 onTap: () => context.push('/catalogo'),
@@ -268,8 +516,9 @@ class _AtalhosGrid extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: _Tile(
-                emoji: '🛍️',
+                icon: Icons.shopping_bag_rounded,
                 tint: sa.paper2,
+                semanticLabel: 'Loja da Mia',
                 label: 'Loja da Mia',
                 meta: 'Em breve · pontos',
                 onTap: null,
@@ -284,15 +533,17 @@ class _AtalhosGrid extends StatelessWidget {
 
 class _Tile extends StatelessWidget {
   const _Tile({
-    required this.emoji,
+    required this.icon,
     required this.tint,
+    required this.semanticLabel,
     required this.label,
     required this.meta,
     required this.onTap,
   });
 
-  final String emoji;
+  final IconData icon;
   final Color tint;
+  final String semanticLabel;
   final String label;
   final String meta;
   final VoidCallback? onTap;
@@ -324,13 +575,23 @@ class _Tile extends StatelessWidget {
                   width: 38,
                   height: 38,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: tint, borderRadius: SaRadius.smAll),
-                  child: Text(emoji, style: const TextStyle(fontSize: 19)),
+                  decoration: BoxDecoration(
+                    color: tint,
+                    borderRadius: SaRadius.smAll,
+                  ),
+                  child: Semantics(
+                    label: semanticLabel,
+                    excludeSemantics: true,
+                    child: Icon(icon, size: 21, color: sa.ink),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(label, style: theme.textTheme.titleSmall),
                 const SizedBox(height: 2),
-                Text(meta, style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+                Text(
+                  meta,
+                  style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                ),
               ],
             ),
           ),
@@ -356,34 +617,48 @@ class _DicaDaMia extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: sa.paper, borderRadius: SaRadius.mdAll, border: Border.all(color: sa.stroke, width: 1.5)),
+      decoration: BoxDecoration(
+        color: sa.paper,
+        borderRadius: SaRadius.mdAll,
+        border: Border.all(color: sa.stroke, width: 1.5),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('🐱', style: theme.textTheme.titleLarge),
+          Icon(Icons.pets_rounded, size: 24, color: sa.ink),
           const SizedBox(width: 10),
           Expanded(
             child: top == null
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Ainda aprendendo os preços daqui', style: theme.textTheme.titleSmall),
+                      Text(
+                        'Ainda aprendendo os preços daqui',
+                        style: theme.textTheme.titleSmall,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         'Escaneie algumas notas e eu descubro os melhores dias de cada categoria na sua região.',
-                        style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
+                        style: theme.textTheme.bodyMedium!.copyWith(
+                          color: sa.muted,
+                        ),
                       ),
                     ],
                   )
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Hoje é dia de ${top.category.label.toLowerCase()}', style: theme.textTheme.titleSmall),
+                      Text(
+                        'Hoje é dia de ${top.category.label.toLowerCase()}',
+                        style: theme.textTheme.titleSmall,
+                      ),
                       const SizedBox(height: 2),
                       Text(
-                        '${top.category.emoji} ${top.category.label} costuma sair mais barato hoje'
+                        '${top.category.label} costuma sair mais barato hoje'
                         '${top.store != null ? " no ${top.store}" : " por perto"}.',
-                        style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
+                        style: theme.textTheme.bodyMedium!.copyWith(
+                          color: sa.muted,
+                        ),
                       ),
                     ],
                   ),
@@ -392,7 +667,10 @@ class _DicaDaMia extends StatelessWidget {
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: BoxDecoration(color: sa.tintGreen, borderRadius: SaRadius.pill),
+              decoration: BoxDecoration(
+                color: sa.tintGreen,
+                borderRadius: SaRadius.pill,
+              ),
               child: Text(
                 '−${top.deltaPct}%',
                 style: theme.textTheme.labelMedium!.copyWith(color: sa.green),

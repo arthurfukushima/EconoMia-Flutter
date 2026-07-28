@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../../core/api_client.dart';
 import '../../data/economia_api.dart';
 import '../../data/receipt_repository.dart';
+import '../../domain/mia.dart';
+import '../gamification/gamification_controller.dart';
 import 'qr_payload.dart';
 import 'scan_mode.dart';
 
@@ -28,7 +30,9 @@ final scanBusyProvider = StateProvider<bool>((ref) => false);
 /// a backend code, it's a client-side read of what was scanned.
 final scanErrorProvider = StateProvider<String?>((ref) => null);
 
-final scanControllerProvider = NotifierProvider<ScanController, void>(ScanController.new);
+final scanControllerProvider = NotifierProvider<ScanController, void>(
+  ScanController.new,
+);
 
 /// Turns whatever the camera or the manual-paste fallback produced into
 /// somewhere to go.
@@ -47,6 +51,11 @@ class ScanController extends Notifier<void> {
     if (parsed == null) {
       final digits = raw.replaceAll(RegExp(r'\D'), '');
       if (RegExp(r'^\d{8,14}$').hasMatch(digits)) {
+        try {
+          ref.read(gamificationProvider.notifier).track('product');
+        } catch (_) {
+          /* tests can omit app prefs */
+        }
         return ScanResult(ScanTarget.produto, digits);
       }
       ref.read(scanErrorProvider.notifier).state = mode == ScanMode.nota
@@ -60,9 +69,20 @@ class ScanController extends Notifier<void> {
       final repo = ref.read(receiptRepositoryProvider);
       // Re-scanning a saved nota reads local and never re-hits the portal.
       var receipt = await repo.getReceipt(parsed.accessKey);
+      final existing = receipt;
       receipt ??= await repo.saveReceipt(
         await ref.read(economiaApiProvider).fetchReceipt(parsed.p),
       );
+      if (existing == null) {
+        try {
+          ref
+              .read(gamificationProvider.notifier)
+              .addPoints(notePoints(receipt));
+          ref.read(gamificationProvider.notifier).track('note');
+        } catch (_) {
+          /* persistence is an app concern; scanning still succeeds */
+        }
+      }
       return ScanResult(ScanTarget.receipt, receipt.accessKey);
     } on ApiException catch (e) {
       ref.read(scanErrorProvider.notifier).state = e.mensagem;

@@ -35,7 +35,7 @@ class _ScanChooser extends StatelessWidget {
             Text('O que vamos escanear?', style: theme.textTheme.titleLarge),
             const SizedBox(height: 14),
             _Option(
-              emoji: '🧾',
+              icon: Icons.receipt_long_rounded,
               tint: theme.sa.paper2,
               title: 'Nota fiscal',
               subtitle: 'QR da nota — entra no seu histórico',
@@ -43,7 +43,7 @@ class _ScanChooser extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _Option(
-              emoji: '🏷️',
+              icon: Icons.sell_rounded,
               tint: theme.sa.tintAmber,
               title: 'Produto',
               subtitle: 'Código de barras — compara o preço perto',
@@ -51,7 +51,7 @@ class _ScanChooser extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _Option(
-              emoji: '🔎',
+              icon: Icons.search_rounded,
               tint: theme.sa.tintGreen,
               title: 'Buscar pelo nome',
               subtitle: 'Sem código à mão — digite o nome do produto',
@@ -69,14 +69,14 @@ class _ScanChooser extends StatelessWidget {
 
 class _Option extends StatelessWidget {
   const _Option({
-    required this.emoji,
+    required this.icon,
     required this.tint,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
-  final String emoji;
+  final IconData icon;
   final Color tint;
   final String title;
   final String subtitle;
@@ -104,9 +104,14 @@ class _Option extends StatelessWidget {
                 width: 44,
                 height: 44,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: tint, borderRadius: SaRadius.smAll),
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: SaRadius.smAll,
+                ),
                 // Decorative: the adjacent title already names the option.
-                child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                child: ExcludeSemantics(
+                  child: Icon(icon, size: 24, color: sa.ink),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -117,7 +122,9 @@ class _Option extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+                      style: theme.textTheme.labelMedium!.copyWith(
+                        color: sa.muted,
+                      ),
                     ),
                   ],
                 ),

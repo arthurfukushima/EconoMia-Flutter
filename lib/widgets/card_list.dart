@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import 'staggered_entrance.dart';
 
 /// The bordered, divided list every card-style section is drawn in — receipt
 /// rows, basket rows, nearby-store rows. One shared shell so a divider tweak
@@ -29,7 +30,7 @@ class CardList extends StatelessWidget {
             if (i > 0) Divider(height: 1, color: sa.stroke),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: children[i],
+              child: StaggeredEntrance(index: i, child: children[i]),
             ),
           ],
         ],

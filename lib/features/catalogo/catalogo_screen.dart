@@ -67,11 +67,11 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> {
     final label = here != null
         ? storeLabel(here)
         : widget.marketLabel ??
-            (storesAsync.isLoading
-                ? 'carregando mercados…'
-                : stores.isEmpty
-                    ? 'toque para buscar o mercado'
-                    : 'selecione o mercado');
+              (storesAsync.isLoading
+                  ? 'carregando mercados…'
+                  : stores.isEmpty
+                  ? 'toque para buscar o mercado'
+                  : 'selecione o mercado');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Catálogo')),
@@ -80,13 +80,16 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> {
           const LocationBar(),
           if (location == null)
             const Expanded(
-              child: _Banner(text: 'Informe seu CEP acima para ver o catálogo dos mercados perto de você.'),
+              child: _Banner(
+                text:
+                    'Informe seu CEP acima para ver o catálogo dos mercados perto de você.',
+              ),
             )
           else ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
               child: StorePickerRow(
-                prefix: '🏪 Mercado: ',
+                prefix: 'Mercado: ',
                 label: label,
                 onTap: () async {
                   final picked = await showStorePicker(
@@ -95,7 +98,9 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> {
                     selectedCod: selected,
                     title: 'Ver o catálogo de',
                     loading: storesAsync.isLoading,
-                    onSearch: (term) => ref.read(economiaApiProvider).searchStores(term, location),
+                    onSearch: (term) => ref
+                        .read(economiaApiProvider)
+                        .searchStores(term, location),
                   );
                   final store = picked?.store;
                   if (store?.cod == null) return;
@@ -107,7 +112,10 @@ class _CatalogoScreenState extends ConsumerState<CatalogoScreen> {
             ),
             Expanded(
               child: selected == null
-                  ? const _Banner(text: 'Escolha um mercado acima para ver o que ele tem em catálogo.')
+                  ? const _Banner(
+                      text:
+                          'Escolha um mercado acima para ver o que ele tem em catálogo.',
+                    )
                   : _Catalog(marketCodigo: selected),
             ),
           ],
@@ -130,14 +138,15 @@ class _Catalog extends ConsumerWidget {
       AsyncData(:final value) when value != null && value.items.isNotEmpty =>
         _CatalogList(catalog: value),
       AsyncData() => const _Banner(
-          text: 'Ainda não temos produtos em cache para este mercado. Escaneie notas ou '
-              'produtos por perto para começar a preencher o catálogo.',
-        ),
+        text:
+            'Ainda não temos produtos em cache para este mercado. Escaneie notas ou '
+            'produtos por perto para começar a preencher o catálogo.',
+      ),
       AsyncError() => _Banner(
-          text: 'Não foi possível carregar o catálogo agora. Tente novamente.',
-          danger: true,
-          onRetry: () => ref.invalidate(catalogoProvider(marketCodigo)),
-        ),
+        text: 'Não foi possível carregar o catálogo agora. Tente novamente.',
+        danger: true,
+        onRetry: () => ref.invalidate(catalogoProvider(marketCodigo)),
+      ),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }
@@ -163,11 +172,16 @@ class _Banner extends StatelessWidget {
             Text(
               text,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium!.copyWith(color: danger ? sa.danger : sa.muted),
+              style: theme.textTheme.bodyMedium!.copyWith(
+                color: danger ? sa.danger : sa.muted,
+              ),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 8),
-              TextButton(onPressed: onRetry, child: const Text('tentar de novo')),
+              TextButton(
+                onPressed: onRetry,
+                child: const Text('tentar de novo'),
+              ),
             ],
           ],
         ),
@@ -187,7 +201,11 @@ class _CatalogList extends ConsumerWidget {
     final sa = theme.sa;
     final category = ref.watch(catalogoCategoryProvider);
     final sort = ref.watch(catalogoSortProvider);
-    final items = visibleCatalogItems(catalog.items, category: category, sort: sort);
+    final items = visibleCatalogItems(
+      catalog.items,
+      category: category,
+      sort: sort,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
@@ -199,17 +217,24 @@ class _CatalogList extends ConsumerWidget {
             children: [
               _CategoryChip(
                 label: 'Todas (${catalog.items.length})',
+                semanticLabel:
+                    'Todas as categorias, ${catalog.items.length} produtos',
                 selected: category == null,
-                onTap: () => ref.read(catalogoCategoryProvider.notifier).state = null,
+                onTap: () =>
+                    ref.read(catalogoCategoryProvider.notifier).state = null,
               ),
               for (final entry in catalog.categories.entries)
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: _CategoryChip(
-                    label: '${Categoria.fromKey(entry.key).emoji} '
+                    label:
                         '${Categoria.fromKey(entry.key).label} (${entry.value})',
+                    semanticLabel:
+                        '${Categoria.fromKey(entry.key).label}, ${entry.value} produtos',
                     selected: category == entry.key,
-                    onTap: () => ref.read(catalogoCategoryProvider.notifier).state = entry.key,
+                    onTap: () =>
+                        ref.read(catalogoCategoryProvider.notifier).state =
+                            entry.key,
                   ),
                 ),
             ],
@@ -218,7 +243,10 @@ class _CatalogList extends ConsumerWidget {
         const SizedBox(height: 6),
         Row(
           children: [
-            Text('Ordenar por ', style: theme.textTheme.labelMedium!.copyWith(color: sa.muted)),
+            Text(
+              'Ordenar por ',
+              style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+            ),
             DropdownButton<CatalogoSort>(
               value: sort,
               isDense: true,
@@ -229,7 +257,9 @@ class _CatalogList extends ConsumerWidget {
                   DropdownMenuItem(value: s, child: Text(s.label)),
               ],
               onChanged: (s) {
-                if (s != null) ref.read(catalogoSortProvider.notifier).state = s;
+                if (s != null) {
+                  ref.read(catalogoSortProvider.notifier).state = s;
+                }
               },
             ),
           ],
@@ -258,9 +288,15 @@ class _CatalogList extends ConsumerWidget {
 }
 
 class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.label, required this.selected, required this.onTap});
+  const _CategoryChip({
+    required this.label,
+    required this.semanticLabel,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
+  final String semanticLabel;
   final bool selected;
   final VoidCallback onTap;
 
@@ -269,13 +305,21 @@ class _CategoryChip extends StatelessWidget {
     final theme = Theme.of(context);
     final sa = theme.sa;
 
-    return ChoiceChip(
-      label: Text(label),
+    return Semantics(
+      button: true,
       selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: sa.tintGreen,
-      backgroundColor: sa.paper2,
-      labelStyle: theme.textTheme.labelMedium,
+      label: semanticLabel,
+      onTap: onTap,
+      child: ExcludeSemantics(
+        child: ChoiceChip(
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => onTap(),
+          selectedColor: sa.tintGreen,
+          backgroundColor: sa.paper2,
+          labelStyle: theme.textTheme.labelMedium,
+        ),
+      ),
     );
   }
 }
@@ -290,12 +334,19 @@ class _CatalogRow extends ConsumerWidget {
   /// Adds to [listId], which may not be the list on screen — so the
   /// confirmation names it. Adding to another list deliberately does **not**
   /// switch the active one: you're browsing a market, not moving house.
-  Future<void> _addTo(BuildContext context, WidgetRef ref, String listId, String listName) async {
+  Future<void> _addTo(
+    BuildContext context,
+    WidgetRef ref,
+    String listId,
+    String listName,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final prefs = ref.read(prefsProvider);
 
     if (listId == ref.read(activeListIdProvider)) {
-      await ref.read(listaControllerProvider.notifier).addNamed(item.description);
+      await ref
+          .read(listaControllerProvider.notifier)
+          .addNamed(item.description);
     } else {
       // A list that isn't loaded has no controller — write it straight to its
       // own key. It gets priced the next time that list is opened, which is
@@ -307,7 +358,10 @@ class _CatalogRow extends ConsumerWidget {
     }
 
     messenger.showSnackBar(
-      SnackBar(content: Text('${item.description} → $listName'), duration: const Duration(seconds: 2)),
+      SnackBar(
+        content: Text('${item.description} → $listName'),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 
@@ -324,7 +378,10 @@ class _CatalogRow extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Adicionar a qual lista?', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Adicionar a qual lista?',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 8),
               Flexible(
                 child: ListView(
@@ -332,8 +389,14 @@ class _CatalogRow extends ConsumerWidget {
                   children: [
                     for (final l in lists)
                       ListTile(
-                        leading: const Text('📋', style: TextStyle(fontSize: 18)),
-                        title: Text(l.name, style: Theme.of(context).textTheme.bodyMedium),
+                        leading: Icon(
+                          Icons.list_alt_rounded,
+                          color: Theme.of(context).sa.ink,
+                        ),
+                        title: Text(
+                          l.name,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
                         onTap: () => Navigator.pop(context, l),
                       ),
                   ],
@@ -355,9 +418,9 @@ class _CatalogRow extends ConsumerWidget {
     final cat = Categoria.fromKey(item.category);
     // Already on the list? Match on the same text the add writes, so a
     // re-render (or a return to this screen) still shows it as added.
-    final added = ref.watch(listaControllerProvider).any(
-          (i) => i.name.toLowerCase() == item.description.toLowerCase(),
-        );
+    final added = ref
+        .watch(listaControllerProvider)
+        .any((i) => i.name.toLowerCase() == item.description.toLowerCase());
     // The button names the list it will add to — with several lists, "+ Lista"
     // alone doesn't say where the item is going.
     final lists = ref.watch(listsProvider);
@@ -374,9 +437,13 @@ class _CatalogRow extends ConsumerWidget {
       CatalogItem(pct: null) => (null, sa.muted),
       CatalogItem(pct: 0) => ('melhor preço', sa.green),
       CatalogItem(:final pct, :final bucket) => (
-          '+$pct%',
-          switch (bucket) { 'otimo' => sa.green, 'ok' => sa.amber, _ => sa.danger },
-        ),
+        '+$pct%',
+        switch (bucket) {
+          'otimo' => sa.green,
+          'ok' => sa.amber,
+          _ => sa.danger,
+        },
+      ),
     };
 
     return Column(
@@ -390,11 +457,13 @@ class _CatalogRow extends ConsumerWidget {
               child: Semantics(
                 label: cat.label,
                 excludeSemantics: true,
-                child: Text(cat.emoji, style: const TextStyle(fontSize: 15)),
+                child: Icon(Icons.category_rounded, size: 17, color: sa.ink),
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(child: Text(item.description, style: theme.textTheme.bodyMedium)),
+            Expanded(
+              child: Text(item.description, style: theme.textTheme.bodyMedium),
+            ),
             const SizedBox(width: 8),
             Text(formatBRL(item.priceCents), style: theme.textTheme.titleSmall),
           ],
@@ -409,14 +478,16 @@ class _CatalogRow extends ConsumerWidget {
                 if (badgeText != null) ...[
                   TextSpan(
                     text: badgeText,
-                    style: theme.textTheme.labelMedium!.copyWith(color: badgeColor),
+                    style: theme.textTheme.labelMedium!.copyWith(
+                      color: badgeColor,
+                    ),
                   ),
                   const TextSpan(text: ' · '),
                 ],
                 TextSpan(
                   text: item.nStores > 1
                       ? '${item.rank}º mais barato de ${item.nStores} mercados · '
-                          'região ${formatRangeBRL(item.minCents, item.maxCents)}'
+                            'região ${formatRangeBRL(item.minCents, item.maxCents)}'
                       : 'preço único encontrado na região',
                 ),
               ],
@@ -431,7 +502,9 @@ class _CatalogRow extends ConsumerWidget {
             child: added
                 ? Text(
                     '✓ em $activeListName',
-                    style: theme.textTheme.labelMedium!.copyWith(color: sa.green),
+                    style: theme.textTheme.labelMedium!.copyWith(
+                      color: sa.green,
+                    ),
                   )
                 : GestureDetector(
                     // Long-press to send it somewhere other than the active
@@ -441,9 +514,13 @@ class _CatalogRow extends ConsumerWidget {
                     // of the common case (adding to the list you're on).
                     onLongPress: () => _chooseListAndAdd(context, ref),
                     child: TextButton(
-                      onPressed: () => _addTo(context, ref, activeId, activeListName),
+                      onPressed: () =>
+                          _addTo(context, ref, activeId, activeListName),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 0,
+                        ),
                         minimumSize: const Size(0, 32),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
