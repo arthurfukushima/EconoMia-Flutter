@@ -391,15 +391,6 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
                         style: theme.textTheme.titleMedium,
                       ),
                     ),
-                    if (location != null)
-                      TextButton(
-                        onPressed: pricing.isEmpty
-                            ? () => ref
-                                  .read(listaControllerProvider.notifier)
-                                  .refresh()
-                            : null,
-                        child: const Text('atualizar preços'),
-                      ),
                   ],
                 ),
                 if (here != null && basket != null) ...[
@@ -699,17 +690,6 @@ class _ItemRow extends ConsumerWidget {
                       onTap: () => controller.choose(item.id, o.key),
                     ),
               ],
-            ],
-          ),
-        if ((active?.stores.length ?? 0) > 1)
-          _Collapse(
-            title: 'ver ${active!.stores.length} mercados',
-            children: [
-              for (final s in active.stores)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: StoreRow(offer: s),
-                ),
             ],
           ),
       ],
