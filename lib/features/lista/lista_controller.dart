@@ -49,9 +49,8 @@ final activeListIdProvider = NotifierProvider<ActiveListController, String>(
 
 /// The active list's items. Loaded from prefs and written back on every edit,
 /// so it is never in memory only.
-final listaControllerProvider = NotifierProvider<ListaController, List<ListItem>>(
-  ListaController.new,
-);
+final listaControllerProvider =
+    NotifierProvider<ListaController, List<ListItem>>(ListaController.new);
 
 /// The index of named lists — create, rename, delete. Deleting the active list
 /// (or the last one) moves [activeListIdProvider] itself, since every screen
@@ -116,7 +115,8 @@ class ListaController extends Notifier<List<ListItem>> {
   String get _listId => ref.read(activeListIdProvider);
 
   @override
-  List<ListItem> build() => ref.read(prefsProvider).itemsOf(ref.read(activeListIdProvider));
+  List<ListItem> build() =>
+      ref.read(prefsProvider).itemsOf(ref.read(activeListIdProvider));
 
   /// Re-reads the active list from disk. Called when the active list changes —
   /// the items of a list that wasn't on screen were never in memory.
@@ -130,7 +130,10 @@ class ListaController extends Notifier<List<ListItem>> {
   }
 
   Future<void> _update(String id, ListItem Function(ListItem item) change) =>
-      _write([for (final it in state) if (it.id == id) change(it) else it]);
+      _write([
+        for (final it in state)
+          if (it.id == id) change(it) else it,
+      ]);
 
   ListItem? _byId(String id) {
     for (final it in state) {
@@ -188,18 +191,38 @@ class ListaController extends Notifier<List<ListItem>> {
     final item = _byId(id);
     if (item == null) return;
     await _update(id, (it) => it.copyWith(checked: !it.checked));
-    if (!item.checked) ref.read(gamificationProvider.notifier).track('list_check');
+    if (!item.checked)
+      ref.read(gamificationProvider.notifier).track('list_check');
   }
 
   Future<void> remove(String id) => removeMany({id});
 
   /// Undo for a whole paste — see [add].
-  Future<void> removeMany(Set<String> ids) =>
-      _write([for (final it in state) if (!ids.contains(it.id)) it]);
+  Future<void> removeMany(Set<String> ids) => _write([
+    for (final it in state)
+      if (!ids.contains(it.id)) it,
+  ]);
+
+  Future<void> reorder(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 || oldIndex >= state.length) return;
+    if (newIndex < 0 || newIndex > state.length) return;
+    if (oldIndex == newIndex) return;
+
+    final moved = [...state];
+    if (newIndex > oldIndex) newIndex -= 1;
+    final item = moved.removeAt(oldIndex);
+    moved.insert(newIndex, item);
+    await _write(moved);
+  }
 
   /// Applies one of the readings the row's "?" offered. Re-prices only when the
   /// basis moved, same rule as [setUnit].
-  Future<void> resolve(String id, {required double qty, required String unit, Measure? size}) async {
+  Future<void> resolve(
+    String id, {
+    required double qty,
+    required String unit,
+    Measure? size,
+  }) async {
     final before = _byId(id);
     if (before == null) return;
     final after = before.copyWith(
@@ -212,8 +235,12 @@ class ListaController extends Notifier<List<ListItem>> {
       parseConf: ParseConf.high,
       reconciled: true,
     );
-    await _write([for (final it in state) if (it.id == id) after else it]);
-    if ((before.unit == 'kg') != (unit == 'kg')) await _price([after], force: true);
+    await _write([
+      for (final it in state)
+        if (it.id == id) after else it,
+    ]);
+    if ((before.unit == 'kg') != (unit == 'kg'))
+      await _price([after], force: true);
   }
 
   /// Switches which of a vague term's candidate products this line is priced
@@ -233,7 +260,10 @@ class ListaController extends Notifier<List<ListItem>> {
     // Hand-set, so the reconciler stays out of it. Someone who switched this to
     // `kg` and got no offers wants to see that, not to be quietly switched back.
     final after = before.copyWith(unit: unit, reconciled: true);
-    await _write([for (final it in state) if (it.id == id) after else it]);
+    await _write([
+      for (final it in state)
+        if (it.id == id) after else it,
+    ]);
     if ((before.unit == 'kg') != (unit == 'kg')) {
       await _price([after], force: true);
     }
@@ -253,7 +283,10 @@ class ListaController extends Notifier<List<ListItem>> {
       pricedAt: null,
       pricedCep: null,
     );
-    await _write([for (final it in state) if (it.id == id) after else it]);
+    await _write([
+      for (final it in state)
+        if (it.id == id) after else it,
+    ]);
     await _price([after], force: true);
   }
 
@@ -282,7 +315,10 @@ class ListaController extends Notifier<List<ListItem>> {
 
     final stale = force
         ? targets
-        : [for (final it in targets) if (isStale(it, location.cep)) it];
+        : [
+            for (final it in targets)
+              if (isStale(it, location.cep)) it,
+          ];
     if (stale.isEmpty) return;
 
     final ids = {for (final it in stale) it.id};
@@ -291,25 +327,29 @@ class ListaController extends Notifier<List<ListItem>> {
 
     try {
       final api = ref.read(economiaApiProvider);
-      final results = await pooled(stale, api.config.pricing.listConcurrency, (ListItem it) async {
+      final results = await pooled(stale, api.config.pricing.listConcurrency, (
+        ListItem it,
+      ) async {
         try {
           return (
-            id: it.id,
-            // Only 'kg' asks for a per-KG basis; 'un' and 'L' are left lenient,
-            // since packaged goods are priced per unit upstream.
-            precos: await api.precosForItem(
-              description: it.name,
-              unit: it.unit == 'kg' ? 'KG' : '',
-              location: location,
-            ),
-          ) as _Result;
+                id: it.id,
+                // Only 'kg' asks for a per-KG basis; 'un' and 'L' are left lenient,
+                // since packaged goods are priced per unit upstream.
+                precos: await api.precosForItem(
+                  description: it.name,
+                  unit: it.unit == 'kg' ? 'KG' : '',
+                  location: location,
+                ),
+              )
+              as _Result;
         } on ApiException {
           return (id: it.id, precos: null) as _Result;
         }
       });
 
-      ref.read(listPriceErrorProvider.notifier).state =
-          results.any((r) => r.precos == null);
+      ref.read(listPriceErrorProvider.notifier).state = results.any(
+        (r) => r.precos == null,
+      );
 
       final priced = {
         for (final r in results)
@@ -329,8 +369,11 @@ class ListaController extends Notifier<List<ListItem>> {
           next.add(it);
           continue;
         }
-        final fresh =
-            it.copyWith(precos: precos, pricedAt: now, pricedCep: location.cep);
+        final fresh = it.copyWith(
+          precos: precos,
+          pricedAt: now,
+          pricedCep: location.cep,
+        );
         final read = reconcile(fresh, precos, staples);
         next.add(read.item);
         if (read.reprice) again.add(read.item);

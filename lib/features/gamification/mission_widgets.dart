@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -126,7 +128,7 @@ class _MissionCarouselState extends State<MissionCarousel> {
   }
 }
 
-class MissionHeroCard extends StatelessWidget {
+class MissionHeroCard extends StatefulWidget {
   const MissionHeroCard({
     super.key,
     required this.row,
@@ -139,24 +141,49 @@ class MissionHeroCard extends StatelessWidget {
   final ValueChanged<String> onClaim;
 
   @override
+  State<MissionHeroCard> createState() => _MissionHeroCardState();
+}
+
+class _MissionHeroCardState extends State<MissionHeroCard>
+    with SingleTickerProviderStateMixin {
+  late final _flash = claimFlashController(this);
+
+  @override
+  void dispose() {
+    _flash.dispose();
+    super.dispose();
+  }
+
+  void _claim() {
+    final sa = Theme.of(context).sa;
+    triggerClaimFlourish(context, _flash, widget.row.definition.points, sa);
+    widget.onClaim(widget.row.definition.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sa = theme.sa;
+    final row = widget.row;
     final ratio = row.definition.goal == 0
         ? 0.0
         : row.progress / row.definition.goal;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: sa.paper,
-        borderRadius: SaRadius.xlAll,
-        border: Border.all(
-          color: row.done ? sa.stroke2 : sa.stroke,
-          width: 1.5,
+    return AnimatedBuilder(
+      animation: _flash,
+      builder: (context, child) => Container(
+        decoration: BoxDecoration(
+          color: Color.lerp(sa.paper, sa.tintGreen, claimFlashValue(_flash)),
+          borderRadius: SaRadius.xlAll,
+          border: Border.all(
+            color: row.done ? sa.stroke2 : sa.stroke,
+            width: 1.5,
+          ),
+          boxShadow: sa.liftSm,
         ),
-        boxShadow: sa.liftSm,
+        padding: const EdgeInsets.all(14),
+        child: child,
       ),
-      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -187,7 +214,7 @@ class MissionHeroCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      hint,
+                      widget.hint,
                       style: theme.textTheme.labelMedium!.copyWith(
                         color: sa.muted,
                       ),
@@ -229,11 +256,7 @@ class MissionHeroCard extends StatelessWidget {
                 )
               else if (row.done)
                 TextButton(
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    showFloatingGain(context, row.definition.points, sa);
-                    onClaim(row.definition.id);
-                  },
+                  onPressed: _claim,
                   child: Text('Resgatar +${row.definition.points}'),
                 )
               else
@@ -306,23 +329,48 @@ class MissionsBoard extends StatelessWidget {
   }
 }
 
-class MissionRow extends StatelessWidget {
+class MissionRow extends StatefulWidget {
   const MissionRow({super.key, required this.row, required this.onClaim});
 
   final QuestRow row;
   final ValueChanged<String> onClaim;
 
   @override
+  State<MissionRow> createState() => _MissionRowState();
+}
+
+class _MissionRowState extends State<MissionRow>
+    with SingleTickerProviderStateMixin {
+  late final _flash = claimFlashController(this);
+
+  @override
+  void dispose() {
+    _flash.dispose();
+    super.dispose();
+  }
+
+  void _claim() {
+    final sa = Theme.of(context).sa;
+    triggerClaimFlourish(context, _flash, widget.row.definition.points, sa);
+    widget.onClaim(widget.row.definition.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sa = theme.sa;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: sa.paper,
-        borderRadius: SaRadius.mdAll,
-        border: Border.all(color: row.done ? sa.stroke2 : sa.stroke),
+    final row = widget.row;
+    return AnimatedBuilder(
+      animation: _flash,
+      builder: (context, child) => Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: Color.lerp(sa.paper, sa.tintGreen, claimFlashValue(_flash)),
+          borderRadius: SaRadius.mdAll,
+          border: Border.all(color: row.done ? sa.stroke2 : sa.stroke),
+        ),
+        child: child,
       ),
       child: Row(
         children: [
@@ -380,11 +428,7 @@ class MissionRow extends StatelessWidget {
                 : row.done
                 ? TextButton(
                     key: const ValueKey('claim'),
-                    onPressed: () {
-                      HapticFeedback.mediumImpact();
-                      showFloatingGain(context, row.definition.points, sa);
-                      onClaim(row.definition.id);
-                    },
+                    onPressed: _claim,
                     child: Text('Resgatar +${row.definition.points}'),
                   )
                 : Text(
@@ -498,7 +542,32 @@ class _MissionsEmptyCard extends StatelessWidget {
   }
 }
 
-void showFloatingGain(BuildContext context, int points, SaColors sa) {
+/// Shared claim-moment flourish for [MissionHeroCard] and [MissionRow]: a
+/// stronger haptic, the card's own background flash (driven by [flash], a
+/// controller each card owns so its card — not its neighbours — lights up),
+/// and the overlay burst. Kept as free functions rather than a mixin since
+/// each card's `build` still needs its own `AnimatedBuilder`/`Container`.
+AnimationController claimFlashController(TickerProvider vsync) =>
+    AnimationController(duration: SaMotion.slow, vsync: vsync);
+
+/// A 0→1→0 pulse across the controller's span, quick up / slow settle.
+double claimFlashValue(AnimationController flash) {
+  final t = flash.value;
+  return t < 0.3 ? (t / 0.3) : (1 - (t - 0.3) / 0.7);
+}
+
+void triggerClaimFlourish(
+  BuildContext context,
+  AnimationController flash,
+  int points,
+  SaColors sa,
+) {
+  HapticFeedback.heavyImpact();
+  flash.forward(from: 0);
+  showClaimBurst(context, points, sa);
+}
+
+void showClaimBurst(BuildContext context, int points, SaColors sa) {
   if (MediaQuery.disableAnimationsOf(context)) return;
   final overlay = Overlay.of(context);
   final box = context.findRenderObject() as RenderBox;
@@ -508,41 +577,66 @@ void showFloatingGain(BuildContext context, int points, SaColors sa) {
   );
   late final OverlayEntry entry;
   entry = OverlayEntry(
-    builder: (context) => _FloatingGain(
+    builder: (context) => _ClaimBurst(
       origin: origin,
       points: points,
-      color: sa.amber,
+      colors: [sa.amber, sa.green, sa.mint],
+      textColor: sa.ink,
       onDone: () => entry.remove(),
     ),
   );
   overlay.insert(entry);
 }
 
-class _FloatingGain extends StatefulWidget {
-  const _FloatingGain({
+class _Spark {
+  _Spark(this.angle, this.distance, this.size, this.color);
+  final double angle, distance, size;
+  final Color color;
+}
+
+/// A dozen dots bursting outward and falling (a plain [CustomPainter], no
+/// particle package) plus a bigger "+N" pill that pops in and rises — the
+/// full flourish for a claimed mission, over the tapped button's own spot.
+class _ClaimBurst extends StatefulWidget {
+  const _ClaimBurst({
     required this.origin,
     required this.points,
-    required this.color,
+    required this.colors,
+    required this.textColor,
     required this.onDone,
   });
 
   final Offset origin;
   final int points;
-  final Color color;
+  final List<Color> colors;
+  final Color textColor;
   final VoidCallback onDone;
 
   @override
-  State<_FloatingGain> createState() => _FloatingGainState();
+  State<_ClaimBurst> createState() => _ClaimBurstState();
 }
 
-class _FloatingGainState extends State<_FloatingGain>
+class _ClaimBurstState extends State<_ClaimBurst>
     with SingleTickerProviderStateMixin {
   late final _controller =
-      AnimationController(duration: SaMotion.slow, vsync: this)
+      AnimationController(
+          duration: const Duration(milliseconds: 900),
+          vsync: this,
+        )
         ..addStatusListener((status) {
           if (status == AnimationStatus.completed) widget.onDone();
         })
         ..forward();
+  late final _sparks = List.generate(12, (i) {
+    final rnd = math.Random(i * 7919 + widget.points * 31);
+    final angle = (i / 12) * 2 * math.pi + rnd.nextDouble() * 0.4;
+    return _Spark(
+      angle,
+      34.0 + rnd.nextDouble() * 32,
+      2.5 + rnd.nextDouble() * 2.5,
+      widget.colors[i % widget.colors.length],
+    );
+  });
 
   @override
   void dispose() {
@@ -552,23 +646,90 @@ class _FloatingGainState extends State<_FloatingGain>
 
   @override
   Widget build(BuildContext context) {
-    final t = SaMotion.easeOut.transform(_controller.value);
-    return Positioned(
-      left: widget.origin.dx - 40,
-      top: widget.origin.dy - 32 * t,
-      child: IgnorePointer(
-        child: Opacity(
-          opacity: 1 - _controller.value,
-          child: Text(
-            '+${widget.points}',
-            style: TextStyle(
-              color: widget.color,
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _controller.value;
+        final burstT = Curves.easeOut.transform(t);
+        final popT = SaMotion.easeBack.transform((t / 0.3).clamp(0.0, 1.0));
+        final riseT = SaMotion.easeOut.transform(t);
+        final fadeT = Curves.easeIn.transform(t);
+        return Stack(
+          children: [
+            Positioned(
+              left: widget.origin.dx - 70,
+              top: widget.origin.dy - 70,
+              width: 140,
+              height: 140,
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _SparkPainter(
+                    sparks: _sparks,
+                    t: burstT,
+                    center: const Offset(70, 70),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
+            Positioned(
+              left: widget.origin.dx - 44,
+              top: widget.origin.dy - 10 - 46 * riseT,
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: (1 - fadeT).clamp(0.0, 1.0),
+                  child: Transform.scale(
+                    scale: 0.4 + 0.6 * popT,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: widget.colors.first,
+                        borderRadius: SaRadius.pill,
+                      ),
+                      child: Text(
+                        '+${widget.points}',
+                        style: TextStyle(
+                          color: widget.textColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
+}
+
+class _SparkPainter extends CustomPainter {
+  _SparkPainter({required this.sparks, required this.t, required this.center});
+
+  final List<_Spark> sparks;
+  final double t;
+  final Offset center;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final spark in sparks) {
+      final dist = spark.distance * t;
+      final fall = 20 * t * t;
+      final pos =
+          center +
+          Offset(math.cos(spark.angle), math.sin(spark.angle)) * dist +
+          Offset(0, fall);
+      final paint = Paint()
+        ..color = spark.color.withValues(alpha: (1 - t).clamp(0.0, 1.0));
+      canvas.drawCircle(pos, spark.size * (1 - t * 0.5), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SparkPainter oldDelegate) => oldDelegate.t != t;
 }

@@ -129,6 +129,8 @@ class HomeScreen extends ConsumerWidget {
               top: todayTrends.isEmpty ? null : todayTrends.first,
             ),
           ),
+          const SizedBox(height: 32),
+          _DebugResetButton(onReset: gamification.reset),
         ],
       ),
     );
@@ -156,16 +158,16 @@ class _PointsPillState extends State<_PointsPill>
   );
   late final _scale = TweenSequence<double>([
     TweenSequenceItem(
-      weight: 45,
+      weight: 40,
       tween: Tween(
         begin: 1.0,
-        end: 1.12,
+        end: 1.3,
       ).chain(CurveTween(curve: SaMotion.easeBack)),
     ),
     TweenSequenceItem(
-      weight: 55,
+      weight: 60,
       tween: Tween(
-        begin: 1.12,
+        begin: 1.3,
         end: 1.0,
       ).chain(CurveTween(curve: SaMotion.easeOut)),
     ),
@@ -199,12 +201,13 @@ class _PointsPillState extends State<_PointsPill>
       animation: _controller,
       builder: (context, child) {
         final shown = (_from + (_to - _from) * _count.value).round();
+        final flash = ((_scale.value - 1.0) / 0.3).clamp(0.0, 1.0);
         return Transform.scale(
           scale: _scale.value,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
             decoration: BoxDecoration(
-              color: sa.paper2,
+              color: Color.lerp(sa.paper2, sa.tintAmber, flash),
               borderRadius: SaRadius.pill,
               boxShadow: sa.liftSm,
             ),
@@ -221,6 +224,42 @@ class _PointsPillState extends State<_PointsPill>
     );
   }
 }
+
+class _DebugResetButton extends StatelessWidget {
+  const _DebugResetButton({required this.onReset});
+
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: TextButton(
+        onPressed: () => showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Reset Missions'),
+            content: const Text('Clear all missions and Mia Points?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  onReset();
+                  Navigator.pop(context);
+                },
+                child: const Text('Reset'),
+              ),
+            ],
+          ),
+        ),
+        child: const Text('Debug: Reset Missions'),
+      ),
+    );
+  }
+}
+
 
 /// Forest-green card, Mia avatar, and — per the honesty rule — one of two
 /// truthful states: a real opportunity figure, or an onboarding nudge. Never

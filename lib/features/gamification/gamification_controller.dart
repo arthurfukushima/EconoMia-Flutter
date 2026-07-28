@@ -211,4 +211,11 @@ class GamificationController extends Notifier<QuestState> {
 
   QuestView view() =>
       questView(state, now: DateTime.now().millisecondsSinceEpoch);
+
+  void reset() {
+    _ensureLoaded();
+    points = 0;
+    state = emptyQuestState();
+    _save();
+  }
 }

@@ -74,6 +74,28 @@ void main() {
     expect(find.text('Produto'), findsOneWidget);
   });
 
+  testWidgets('creating a list closes its naming dialog without controller errors', (
+    tester,
+  ) async {
+    await bootToHome(tester);
+
+    await tester.tap(tabText('Lista'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Minha Lista'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Nova lista'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, 'Feira');
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Feira'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('routes pushed above the shell hide the tab bar', (tester) async {
     await bootToHome(tester);
     expect(find.byType(BottomNav), findsOneWidget);

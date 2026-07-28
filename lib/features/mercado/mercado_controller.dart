@@ -25,3 +25,9 @@ String? defaultStoreCod(AppLocation location, List<Offer> stores, String? saved)
   if (saved != null && stores.any((s) => s.cod == saved)) return saved;
   return stores.first.cod;
 }
+
+/// The embedded Mercado scanner emits the same barcode on consecutive frames
+/// while the product is still in view. Accept the first hit, then require a
+/// different code before handling another camera scan.
+bool shouldHandleCameraScan(String digits, String? lastAcceptedDigits) =>
+    digits.isNotEmpty && digits != lastAcceptedDigits;

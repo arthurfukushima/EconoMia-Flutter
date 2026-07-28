@@ -51,6 +51,7 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
   final _manualController = TextEditingController();
   bool _manualOpen = false;
   bool _fired = false;
+  String? _lastAcceptedCameraDigits;
 
   List<Offer> _scannedStores = const [];
   String? _codStr;
@@ -108,7 +109,10 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
     if (_fired || capture.barcodes.isEmpty) return;
     final raw = capture.barcodes.first.rawValue;
     if (raw == null) return;
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (!shouldHandleCameraScan(digits, _lastAcceptedCameraDigits)) return;
     _fired = true;
+    _lastAcceptedCameraDigits = digits;
     _submit(raw).whenComplete(() => _fired = false);
   }
 

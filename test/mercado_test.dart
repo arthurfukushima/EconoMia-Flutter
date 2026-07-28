@@ -44,4 +44,18 @@ void main() {
       expect(defaultStoreCod(const AppLocation(lat: 0, lng: 0), stores, 'gone'), '1');
     });
   });
+
+  group('shouldHandleCameraScan', () {
+    test('accepts the first camera hit for a barcode', () {
+      expect(shouldHandleCameraScan('7891234567890', null), isTrue);
+    });
+
+    test('ignores the same barcode on consecutive frames', () {
+      expect(shouldHandleCameraScan('7891234567890', '7891234567890'), isFalse);
+    });
+
+    test('accepts a different barcode after the previous one', () {
+      expect(shouldHandleCameraScan('7891234567891', '7891234567890'), isTrue);
+    });
+  });
 }

@@ -12,9 +12,7 @@ import '../../domain/lista.dart';
 import '../../domain/lista_parse.dart';
 import '../../domain/stores.dart';
 import '../../theme/tokens.dart';
-import '../../widgets/card_list.dart';
 import '../../widgets/cat_chip.dart';
-import '../../widgets/offer_span.dart';
 import '../../widgets/store_picker.dart';
 import '../location/location_controller.dart';
 import 'lista_controller.dart';
@@ -29,34 +27,66 @@ String _qtyText(ListItem it) => '${_num(it.qty)} ${it.unit}';
 
 String _plural(int n, String one, String many) => n == 1 ? one : many;
 
-Future<String?> _showEditItemDialog(BuildContext context, String initial) {
-  final controller = TextEditingController(text: initial);
-  return showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Editar item'),
+Future<String?> _showEditItemDialog(BuildContext context, String initial) =>
+    showDialog<String>(
+      context: context,
+      builder: (context) => _TextPromptDialog(
+        title: 'Editar item',
+        initial: initial,
+        hintText: 'Nome do item',
+      ),
+    );
+
+class _TextPromptDialog extends StatefulWidget {
+  const _TextPromptDialog({
+    required this.title,
+    required this.hintText,
+    this.initial = '',
+  });
+
+  final String title;
+  final String hintText;
+  final String initial;
+
+  @override
+  State<_TextPromptDialog> createState() => _TextPromptDialogState();
+}
+
+class _TextPromptDialogState extends State<_TextPromptDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    Navigator.pop(context, value.isEmpty ? null : value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'Nome do item'),
-        onSubmitted: (v) =>
-            Navigator.pop(context, v.trim().isEmpty ? null : v.trim()),
+        decoration: InputDecoration(hintText: widget.hintText),
+        onSubmitted: (_) => _submit(),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),
         ),
-        FilledButton(
-          onPressed: () {
-            final v = controller.text.trim();
-            Navigator.pop(context, v.isEmpty ? null : v);
-          },
-          child: const Text('Salvar'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('Salvar')),
       ],
-    ),
-  ).whenComplete(controller.dispose);
+    );
+  }
 }
 
 /// "Minha lista" — jot the list your own way (a category, a brand, or with a
@@ -129,13 +159,13 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
       case _Switch(:final id):
         _switchList(id);
       case _Create():
-        final name = await _promptName(title: 'Nova lista', initial: '');
+        final name = await _showNamePrompt(title: 'Nova lista', initial: '');
         if (name == null || !mounted) return;
         final created = await ref.read(listsProvider.notifier).create(name);
         if (!mounted) return;
         _switchList(created.id);
       case _Rename(:final id, :final currentName):
-        final name = await _promptName(
+        final name = await _showNamePrompt(
           title: 'Renomear lista',
           initial: currentName,
         );
@@ -155,9 +185,10 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
   Future<String?> _promptName({
     required String title,
     required String initial,
-  }) {
+  }) async {
     final controller = TextEditingController(text: initial);
-    return showDialog<String>(
+    try {
+      return await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
@@ -184,8 +215,24 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
           ),
         ],
       ),
-    ).whenComplete(controller.dispose);
+      );
+    } finally {
+      controller.dispose();
+    }
   }
+
+  Future<String?> _showNamePrompt({
+    required String title,
+    required String initial,
+  }) =>
+      showDialog<String>(
+        context: context,
+        builder: (context) => _TextPromptDialog(
+          title: title,
+          initial: initial,
+          hintText: 'Ex: Churrasco, Casa, MÃªs',
+        ),
+      );
 
   Future<bool?> _confirmDelete(String name) => showDialog<bool>(
     context: context,
@@ -402,15 +449,10 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
                   ),
                 ],
                 const SizedBox(height: 10),
-                CardList(
-                  children: [
-                    for (final it in items)
-                      _ItemRow(
-                        item: it,
-                        loading: pricing.contains(it.id),
-                        cod: effectiveCod,
-                      ),
-                  ],
+                _ReorderableItemsCard(
+                  items: items,
+                  pricing: pricing,
+                  cod: effectiveCod,
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -556,6 +598,74 @@ class _BasketSummary extends StatelessWidget {
   }
 }
 
+class _ReorderableItemsCard extends ConsumerWidget {
+  const _ReorderableItemsCard({
+    required this.items,
+    required this.pricing,
+    required this.cod,
+  });
+
+  final List<ListItem> items;
+  final Set<String> pricing;
+  final String? cod;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sa = Theme.of(context).sa;
+    final controller = ref.read(listaControllerProvider.notifier);
+
+    return Material(
+      color: sa.paper,
+      shape: RoundedRectangleBorder(
+        borderRadius: SaRadius.mdAll,
+        side: BorderSide(color: sa.stroke, width: 1.5),
+      ),
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        buildDefaultDragHandles: false,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount: items.length,
+        onReorder: controller.reorder,
+        proxyDecorator: (child, index, animation) => Material(
+          color: sa.paper,
+          shape: RoundedRectangleBorder(
+            borderRadius: SaRadius.smAll,
+            side: BorderSide(color: sa.stroke, width: 1.5),
+          ),
+          elevation: 4,
+          child: child,
+        ),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return Container(
+            key: ValueKey(item.id),
+            decoration: index == items.length - 1
+                ? null
+                : BoxDecoration(
+                    border: Border(bottom: BorderSide(color: sa.stroke)),
+                  ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: _ItemRow(
+              item: item,
+              loading: pricing.contains(item.id),
+              cod: cod,
+              dragHandle: ReorderableDragStartListener(
+                index: index,
+                child: Icon(
+                  Icons.drag_indicator_rounded,
+                  size: 20,
+                  color: sa.muted,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 /// One line of the list: check it off, adjust how much of it you want, and see
 /// what it costs — either cheapest nearby or at the picked market.
 class _ItemRow extends ConsumerWidget {
@@ -563,11 +673,13 @@ class _ItemRow extends ConsumerWidget {
     required this.item,
     required this.loading,
     required this.cod,
+    required this.dragHandle,
   });
 
   final ListItem item;
   final bool loading;
   final String? cod;
+  final Widget dragHandle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -583,6 +695,13 @@ class _ItemRow extends ConsumerWidget {
       children: [
         Row(
           children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Tooltip(
+                message: 'arrastar para reordenar',
+                child: dragHandle,
+              ),
+            ),
             Checkbox(
               value: item.checked,
               onChanged: (_) => controller.toggle(item.id),
@@ -657,7 +776,7 @@ class _ItemRow extends ConsumerWidget {
         ),
         if (options.length > 1)
           _Collapse(
-            title: 'trocar produto (${options.length} opções)',
+            title: '${options.length} opções',
             children: [
               // Tier 1 (the literal product typed) and tier 2 (formulation/
               // packaging variants — Zero, Retornável, ...) as two groups, not
@@ -1054,10 +1173,7 @@ class _PriceLine extends StatelessWidget {
 
     final options = item.precos!.options;
     if (!confirmed && options.isNotEmpty) {
-      return Text(
-        '${options.length} opções — escolha um produto',
-        style: muted,
-      );
+      return const SizedBox.shrink();
     }
 
     if (cod != null) {
@@ -1090,13 +1206,40 @@ class _PriceLine extends StatelessWidget {
       );
     }
 
-    final cheapest = active?.cheapest;
-    if (cheapest == null) return Text('sem preço por perto', style: muted);
+    final pricedStores = [
+      for (final s in active?.stores ?? const <Offer>[])
+        if (s.priceCents > 0) s,
+    ];
+    if (pricedStores.isEmpty) return Text('sem preço por perto', style: muted);
+    var minLineCents = lineCents(pricedStores.first.priceCents, item.qty);
+    var maxLineCents = minLineCents;
+    for (final s in pricedStores.skip(1)) {
+      final line = lineCents(s.priceCents, item.qty);
+      if (line < minLineCents) minLineCents = line;
+      if (line > maxLineCents) maxLineCents = line;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if ((active?.name ?? '').isNotEmpty) Text(active!.name!, style: body),
-        OfferSpan(offer: cheapest),
+        Text.rich(
+          TextSpan(
+            style: body,
+            children: [
+              TextSpan(
+                text: formatRangeBRL(minLineCents, maxLineCents),
+                style: theme.textTheme.titleSmall!.copyWith(color: sa.green),
+              ),
+              if (item.qty != 1 && minLineCents == maxLineCents)
+                TextSpan(
+                  text:
+                      ' (${_qtyText(item)} × ${formatBRL(pricedStores.first.priceCents)})',
+                  style: muted,
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -1120,7 +1263,20 @@ class _OptionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sa = theme.sa;
-    final price = option.cheapest?.priceCents;
+    final pricedStores = [
+      for (final s in option.stores)
+        if (s.priceCents > 0) s,
+    ];
+    int? minPrice;
+    int? maxPrice;
+    if (pricedStores.isNotEmpty) {
+      minPrice = pricedStores.first.priceCents;
+      maxPrice = minPrice;
+      for (final s in pricedStores.skip(1)) {
+        if (s.priceCents < minPrice!) minPrice = s.priceCents;
+        if (s.priceCents > maxPrice!) maxPrice = s.priceCents;
+      }
+    }
 
     return Semantics(
       selected: selected,
@@ -1142,7 +1298,7 @@ class _OptionTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${price == null ? '—' : formatBRL(price)} · ${option.nStores} '
+                  '${formatRangeBRL(minPrice, maxPrice)} · ${option.nStores} '
                   '${_plural(option.nStores, "mercado", "mercados")}',
                   style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
                 ),
@@ -1294,19 +1450,13 @@ class _PricesMenu extends StatelessWidget {
               subtitle: currentStore != null
                   ? Text(storeLabel(currentStore!))
                   : null,
-              onTap: () {
-                onTapStore();
-                Navigator.pop(context);
-              },
+              onTap: onTapStore,
             ),
             if (marketCount > 0)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text('Ver mercados próximos ($marketCount)'),
-                onTap: () {
-                  onTapMarkets();
-                  Navigator.pop(context);
-                },
+                onTap: onTapMarkets,
               ),
           ],
         ),

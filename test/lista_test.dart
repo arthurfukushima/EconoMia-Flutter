@@ -56,7 +56,9 @@ void main() {
 
     test('older than 12h → stale', () {
       final old = priced.copyWith(
-        pricedAt: now.subtract(const Duration(hours: 13)).millisecondsSinceEpoch,
+        pricedAt: now
+            .subtract(const Duration(hours: 13))
+            .millisecondsSinceEpoch,
       );
       expect(isStale(old, '86010000', now: now), isTrue);
     });
@@ -66,13 +68,30 @@ void main() {
     });
 
     test('never priced → stale', () {
-      expect(isStale(const ListItem(id: 'b', raw: 'Cafe', name: 'Cafe'), '86010000', now: now), isTrue);
+      expect(
+        isStale(
+          const ListItem(id: 'b', raw: 'Cafe', name: 'Cafe'),
+          '86010000',
+          now: now,
+        ),
+        isTrue,
+      );
     });
   });
 
   group('activeOption', () {
-    const optA = ProductOption(key: 'a', name: 'CARNE MOIDA', cheapest: Offer(priceCents: 2990), nStores: 4);
-    const optB = ProductOption(key: 'b', name: 'CARNE SECA', cheapest: Offer(priceCents: 4990), nStores: 2);
+    const optA = ProductOption(
+      key: 'a',
+      name: 'CARNE MOIDA',
+      cheapest: Offer(priceCents: 2990),
+      nStores: 4,
+    );
+    const optB = ProductOption(
+      key: 'b',
+      name: 'CARNE SECA',
+      cheapest: Offer(priceCents: 4990),
+      nStores: 2,
+    );
     const item = ListItem(
       id: '1',
       raw: 'Carne',
@@ -88,30 +107,47 @@ void main() {
       expect(activeOption(item)?.name, 'CARNE MOIDA');
     });
 
-    test('a pick that no longer exists falls back rather than blanking the row', () {
-      expect(activeOption(item.copyWith(chosenKey: 'gone'))?.name, 'CARNE MOIDA');
-    });
+    test(
+      'a pick that no longer exists falls back rather than blanking the row',
+      () {
+        expect(
+          activeOption(item.copyWith(chosenKey: 'gone'))?.name,
+          'CARNE MOIDA',
+        );
+      },
+    );
 
-    test('an item cached before options existed reads its collapsed result', () {
-      const legacy = ListItem(
-        id: '2',
-        raw: 'Toddy',
-        name: 'Toddy',
-        precos: Precos(
-          name: 'TODDY 400G',
-          cheapest: Offer(priceCents: 1299),
-          stores: [Offer(cod: '1', priceCents: 1299)],
-          nStores: 1,
-        ),
-      );
-      final active = activeOption(legacy);
-      expect(active?.name, 'TODDY 400G');
-      expect(active?.stores.single.cod, '1');
-    });
+    test(
+      'an item cached before options existed reads its collapsed result',
+      () {
+        const legacy = ListItem(
+          id: '2',
+          raw: 'Toddy',
+          name: 'Toddy',
+          precos: Precos(
+            name: 'TODDY 400G',
+            cheapest: Offer(priceCents: 1299),
+            stores: [Offer(cod: '1', priceCents: 1299)],
+            nStores: 1,
+          ),
+        );
+        final active = activeOption(legacy);
+        expect(active?.name, 'TODDY 400G');
+        expect(active?.stores.single.cod, '1');
+      },
+    );
 
     test('no price at all → null', () {
-      expect(activeOption(const ListItem(id: '3', raw: 'X', name: 'X')), isNull);
-      expect(activeOption(const ListItem(id: '3', raw: 'X', name: 'X', precos: Precos())), isNull);
+      expect(
+        activeOption(const ListItem(id: '3', raw: 'X', name: 'X')),
+        isNull,
+      );
+      expect(
+        activeOption(
+          const ListItem(id: '3', raw: 'X', name: 'X', precos: Precos()),
+        ),
+        isNull,
+      );
     });
   });
 
@@ -144,25 +180,34 @@ void main() {
       ),
     ];
 
-    test('coverage beats price — the trip you want is the one that gets everything', () {
-      final ranked = marketRanking(items);
-      expect(ranked.map((m) => m.cod), ['1', '2']);
-      expect(ranked.first.count, 2);
-      // 2 × 449 + 1,235 × 499, each line rounded once.
-      expect(ranked.first.totalCents, 898 + 616);
-    });
+    test(
+      'coverage beats price — the trip you want is the one that gets everything',
+      () {
+        final ranked = marketRanking(items);
+        expect(ranked.map((m) => m.cod), ['1', '2']);
+        expect(ranked.first.count, 2);
+        // 2 × 449 + 1,235 × 499, each line rounded once.
+        expect(ranked.first.totalCents, 898 + 616);
+      },
+    );
 
     test('equal coverage → the cheaper partial basket first', () {
       final one = items.first;
       final ranked = marketRanking([one]);
-      expect(ranked.map((m) => m.cod), ['2', '1'], reason: 'MUFFATO is cheaper on the only item');
+      expect(ranked.map((m) => m.cod), [
+        '2',
+        '1',
+      ], reason: 'MUFFATO is cheaper on the only item');
     });
 
-    test('basketAt reports coverage alongside the total, never the total alone', () {
-      expect(basketAt(items, '1'), (carried: 2, totalCents: 1514));
-      expect(basketAt(items, '2'), (carried: 1, totalCents: 796));
-      expect(basketAt(items, 'nowhere'), (carried: 0, totalCents: 0));
-    });
+    test(
+      'basketAt reports coverage alongside the total, never the total alone',
+      () {
+        expect(basketAt(items, '1'), (carried: 2, totalCents: 1514));
+        expect(basketAt(items, '2'), (carried: 1, totalCents: 796));
+        expect(basketAt(items, 'nowhere'), (carried: 0, totalCents: 0));
+      },
+    );
 
     test('listStores is the picker without an extra fetch, nearest-first', () {
       expect(listStores(items).map((s) => s.cod), ['2', '1']);
@@ -178,54 +223,87 @@ void main() {
 
     /// A list holding one item priced 13h ago — stale by the clock, with prices
     /// that are still perfectly good to show.
-    final cachedAt = DateTime.now().subtract(const Duration(hours: 13)).millisecondsSinceEpoch;
+    final cachedAt = DateTime.now()
+        .subtract(const Duration(hours: 13))
+        .millisecondsSinceEpoch;
     final cached = ListItem(
       id: 'toddy',
       raw: 'Toddy',
       name: 'Toddy',
-      precos: const Precos(name: 'TODDY 400G', cheapest: Offer(priceCents: 1299)),
+      precos: const Precos(
+        name: 'TODDY 400G',
+        cheapest: Offer(priceCents: 1299),
+      ),
       pricedAt: cachedAt,
       pricedCep: cep,
     );
 
-    Future<ProviderContainer> boot(http.Client client, {List<ListItem> items = const []}) async {
+    Future<ProviderContainer> boot(
+      http.Client client, {
+      List<ListItem> items = const [],
+    }) async {
       SharedPreferences.setMockInitialValues({
-        'economia.location': jsonEncode(const AppLocation(
-          lat: -23.31,
-          lng: -51.16,
-          cep: cep,
-          city: 'Londrina',
-          raio: 50,
-        ).toJson()),
-        'economia.shoppingList': jsonEncode([for (final i in items) i.toJson()]),
+        'economia.location': jsonEncode(
+          const AppLocation(
+            lat: -23.31,
+            lng: -51.16,
+            cep: cep,
+            city: 'Londrina',
+            raio: 50,
+          ).toJson(),
+        ),
+        'economia.shoppingList': jsonEncode([
+          for (final i in items) i.toJson(),
+        ]),
       });
       final prefs = Prefs(await SharedPreferences.getInstance());
       await prefs.initLists();
-      final container = ProviderContainer(overrides: [
-        prefsProvider.overrideWithValue(prefs),
-        economiaApiProvider.overrideWithValue(EconomiaApi(ApiClient(client: client))),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          economiaApiProvider.overrideWithValue(
+            EconomiaApi(ApiClient(client: client)),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
       return container;
     }
 
-    final down = MockClient((_) async => http.Response.bytes(
-          utf8.encode(jsonEncode({'error': 'menorpreco_failed'})),
-          502,
-        ));
+    final down = MockClient(
+      (_) async => http.Response.bytes(
+        utf8.encode(jsonEncode({'error': 'menorpreco_failed'})),
+        502,
+      ),
+    );
 
-    test('a failed refresh keeps the old prices AND the old timestamp', () async {
-      final container = await boot(down, items: [cached]);
-      await container.read(listaControllerProvider.notifier).refresh();
+    test(
+      'a failed refresh keeps the old prices AND the old timestamp',
+      () async {
+        final container = await boot(down, items: [cached]);
+        await container.read(listaControllerProvider.notifier).refresh();
 
-      final item = container.read(listaControllerProvider).single;
-      expect(item.precos?.cheapest?.priceCents, 1299, reason: 'a 502 must never blank a good price');
-      expect(item.pricedAt, cachedAt, reason: 'a fresh stamp on a failure stops it ever retrying');
-      expect(isStale(item, cep), isTrue, reason: 'still due, so the next pass tries again');
-      expect(container.read(listPriceErrorProvider), isTrue);
-      // Nothing is left marked as loading, even on the failure path.
-      expect(container.read(listPricingProvider), isEmpty);
-    });
+        final item = container.read(listaControllerProvider).single;
+        expect(
+          item.precos?.cheapest?.priceCents,
+          1299,
+          reason: 'a 502 must never blank a good price',
+        );
+        expect(
+          item.pricedAt,
+          cachedAt,
+          reason: 'a fresh stamp on a failure stops it ever retrying',
+        );
+        expect(
+          isStale(item, cep),
+          isTrue,
+          reason: 'still due, so the next pass tries again',
+        );
+        expect(container.read(listPriceErrorProvider), isTrue);
+        // Nothing is left marked as loading, even on the failure path.
+        expect(container.read(listPricingProvider), isEmpty);
+      },
+    );
 
     test('the failure is not written to disk either', () async {
       final container = await boot(down, items: [cached]);
@@ -237,8 +315,10 @@ void main() {
     });
 
     test('a successful pass stamps the price, the time and the CEP', () async {
-      final ok = MockClient((_) async => http.Response.bytes(
-            utf8.encode(jsonEncode({
+      final ok = MockClient(
+        (_) async => http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
               'basis': 'desc',
               'confidence': 'approx',
               'name': 'TODDY 400G',
@@ -248,9 +328,11 @@ void main() {
               'stores': [
                 {'cod': '1', 'priceCents': 1149, 'store': 'CONDOR', 'km': 2.4},
               ],
-            })),
-            200,
-          ));
+            }),
+          ),
+          200,
+        ),
+      );
       final container = await boot(ok, items: [cached]);
       await container.read(listaControllerProvider.notifier).priceStale();
 
@@ -265,16 +347,26 @@ void main() {
     test('"no offers nearby" is a real answer and gets cached', () async {
       // Otherwise every open re-asks a rate-limited source the same question it
       // already answered.
-      final empty = MockClient((_) async => http.Response.bytes(
-            utf8.encode(jsonEncode({'nOffers': 0, 'stores': <Object>[]})),
-            200,
-          ));
+      final empty = MockClient(
+        (_) async => http.Response.bytes(
+          utf8.encode(jsonEncode({'nOffers': 0, 'stores': <Object>[]})),
+          200,
+        ),
+      );
       final container = await boot(empty, items: [cached]);
       await container.read(listaControllerProvider.notifier).refresh();
 
       final item = container.read(listaControllerProvider).single;
-      expect(activeOption(item), isNull, reason: 'the row says "sem preço por perto"');
-      expect(isStale(item, cep), isFalse, reason: 'answered, so not re-asked for 12h');
+      expect(
+        activeOption(item),
+        isNull,
+        reason: 'the row says "sem preço por perto"',
+      );
+      expect(
+        isStale(item, cep),
+        isFalse,
+        reason: 'answered, so not re-asked for 12h',
+      );
       expect(container.read(listPriceErrorProvider), isFalse);
     });
 
@@ -282,9 +374,14 @@ void main() {
       var calls = 0;
       final counting = MockClient((_) async {
         calls++;
-        return http.Response.bytes(utf8.encode(jsonEncode({'nOffers': 0})), 200);
+        return http.Response.bytes(
+          utf8.encode(jsonEncode({'nOffers': 0})),
+          200,
+        );
       });
-      final fresh = cached.copyWith(pricedAt: DateTime.now().millisecondsSinceEpoch);
+      final fresh = cached.copyWith(
+        pricedAt: DateTime.now().millisecondsSinceEpoch,
+      );
       final container = await boot(counting, items: [fresh]);
 
       await container.read(listaControllerProvider.notifier).priceStale();
@@ -295,18 +392,24 @@ void main() {
     });
 
     test('add parses, persists and prices the new lines', () async {
-      final ok = MockClient((_) async => http.Response.bytes(
-            utf8.encode(jsonEncode({
+      final ok = MockClient(
+        (_) async => http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
               'nOffers': 1,
               'cheapest': {'priceCents': 599, 'store': 'CONDOR'},
               'stores': [
                 {'cod': '1', 'priceCents': 599, 'store': 'CONDOR'},
               ],
-            })),
-            200,
-          ));
+            }),
+          ),
+          200,
+        ),
+      );
       final container = await boot(ok);
-      await container.read(listaControllerProvider.notifier).add('4x Tomates, 1.5kg Carne');
+      await container
+          .read(listaControllerProvider.notifier)
+          .add('4x Tomates, 1.5kg Carne');
 
       final items = container.read(listaControllerProvider);
       // Singularised for the search; "tomate" is sold by the kilo, so four of
@@ -314,7 +417,11 @@ void main() {
       expect(items.map((i) => i.name), ['Tomate', 'Carne']);
       expect(items.map((i) => i.unit), ['kg', 'kg']);
       expect(items.every((i) => i.precos != null), isTrue);
-      expect(_onDisk(container).length, 2, reason: 'persisted, not memory-only');
+      expect(
+        _onDisk(container).length,
+        2,
+        reason: 'persisted, not memory-only',
+      );
     });
 
     test('newest first, and an edit round-trips to disk', () async {
@@ -322,14 +429,19 @@ void main() {
       final controller = container.read(listaControllerProvider.notifier);
       await controller.add('Toddy');
       await controller.add('Cafe');
-      expect(container.read(listaControllerProvider).map((i) => i.name), ['Cafe', 'Toddy']);
+      expect(container.read(listaControllerProvider).map((i) => i.name), [
+        'Cafe',
+        'Toddy',
+      ]);
 
       final id = container.read(listaControllerProvider).first.id;
       await controller.toggle(id);
       expect(_onDisk(container).first.checked, isTrue);
 
       await controller.remove(id);
-      expect(container.read(listaControllerProvider).map((i) => i.name), ['Toddy']);
+      expect(container.read(listaControllerProvider).map((i) => i.name), [
+        'Toddy',
+      ]);
       expect(_onDisk(container).length, 1);
     });
 
@@ -337,9 +449,14 @@ void main() {
       var calls = 0;
       final counting = MockClient((_) async {
         calls++;
-        return http.Response.bytes(utf8.encode(jsonEncode({'nOffers': 0})), 200);
+        return http.Response.bytes(
+          utf8.encode(jsonEncode({'nOffers': 0})),
+          200,
+        );
       });
-      final fresh = cached.copyWith(pricedAt: DateTime.now().millisecondsSinceEpoch);
+      final fresh = cached.copyWith(
+        pricedAt: DateTime.now().millisecondsSinceEpoch,
+      );
       final container = await boot(counting, items: [fresh]);
       final controller = container.read(listaControllerProvider.notifier);
 
@@ -357,10 +474,14 @@ void main() {
         calls++;
         return http.Response.bytes(utf8.encode('{}'), 200);
       });
-      final container = ProviderContainer(overrides: [
-        prefsProvider.overrideWithValue(await _initedPrefs()),
-        economiaApiProvider.overrideWithValue(EconomiaApi(ApiClient(client: counting))),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          prefsProvider.overrideWithValue(await _initedPrefs()),
+          economiaApiProvider.overrideWithValue(
+            EconomiaApi(ApiClient(client: counting)),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(listaControllerProvider.notifier).add('Toddy');
@@ -371,14 +492,24 @@ void main() {
 
   // Catálogo's "+ Lista": a store-reported product name, not a jotted line.
   group('addNamed (from Catálogo)', () {
-    Future<ProviderContainer> boot() async {
-      SharedPreferences.setMockInitialValues({});
-      final container = ProviderContainer(overrides: [
-        prefsProvider.overrideWithValue(await _initedPrefs()),
-        economiaApiProvider.overrideWithValue(
-          EconomiaApi(ApiClient(client: MockClient((_) async => http.Response('{}', 200)))),
-        ),
-      ]);
+    Future<ProviderContainer> boot({List<ListItem> items = const []}) async {
+      SharedPreferences.setMockInitialValues({
+        'economia.shoppingList': jsonEncode([
+          for (final i in items) i.toJson(),
+        ]),
+      });
+      final container = ProviderContainer(
+        overrides: [
+          prefsProvider.overrideWithValue(await _initedPrefs()),
+          economiaApiProvider.overrideWithValue(
+            EconomiaApi(
+              ApiClient(
+                client: MockClient((_) async => http.Response('{}', 200)),
+              ),
+            ),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
       return container;
     }
@@ -387,7 +518,9 @@ void main() {
     // leading packaging token as a quantity prefix and eat it off the name.
     test('a leading packaging token stays part of the name', () async {
       final container = await boot();
-      await container.read(listaControllerProvider.notifier).addNamed('1KG ARROZ TIO JOAO');
+      await container
+          .read(listaControllerProvider.notifier)
+          .addNamed('1KG ARROZ TIO JOAO');
 
       final item = container.read(listaControllerProvider).single;
       expect(item.name, '1KG ARROZ TIO JOAO');
@@ -400,14 +533,18 @@ void main() {
 
     test('a bare KG asks for a per-KG basis', () async {
       final container = await boot();
-      await container.read(listaControllerProvider.notifier).addNamed('PICANHA BOV KG');
+      await container
+          .read(listaControllerProvider.notifier)
+          .addNamed('PICANHA BOV KG');
 
       expect(container.read(listaControllerProvider).single.unit, 'kg');
     });
 
     test('anything else is a packaged unit', () async {
       final container = await boot();
-      await container.read(listaControllerProvider.notifier).addNamed('LEITE INTEGRAL ITALAC 1L');
+      await container
+          .read(listaControllerProvider.notifier)
+          .addNamed('LEITE INTEGRAL ITALAC 1L');
 
       expect(container.read(listaControllerProvider).single.unit, 'un');
     });
@@ -418,8 +555,30 @@ void main() {
       await controller.addNamed('ARROZ');
       await controller.addNamed('FEIJAO');
 
-      expect(container.read(listaControllerProvider).map((i) => i.name), ['FEIJAO', 'ARROZ']);
+      expect(container.read(listaControllerProvider).map((i) => i.name), [
+        'FEIJAO',
+        'ARROZ',
+      ]);
       expect(_onDisk(container).map((i) => i.name), ['FEIJAO', 'ARROZ']);
+    });
+
+    test('reorder changes the list order and persists it too', () async {
+      final container = await boot(
+        items: const [
+          ListItem(id: 'a', raw: 'Arroz', name: 'Arroz'),
+          ListItem(id: 'b', raw: 'Feijao', name: 'Feijao'),
+          ListItem(id: 'c', raw: 'Cafe', name: 'Cafe'),
+        ],
+      );
+
+      await container.read(listaControllerProvider.notifier).reorder(0, 3);
+
+      expect(container.read(listaControllerProvider).map((i) => i.id), [
+        'b',
+        'c',
+        'a',
+      ]);
+      expect(_onDisk(container).map((i) => i.id), ['b', 'c', 'a']);
     });
 
     test('a blank description adds nothing', () async {
