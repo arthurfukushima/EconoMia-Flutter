@@ -125,6 +125,35 @@ own specs — not backend-integration work.
 
 ---
 
+## Backend moved into this repo (out of band, 2026-07-27)
+
+Not a numbered phase. The five Vercel functions were living in a clone of the
+React MVP (`github.com/arthurfukushima/EconoMia`) — someone else's repo, linked
+to the same Vercel project as this one. Nothing about the deployed API was ours
+to change. Moved here.
+
+| Piece | Notes |
+|---|---|
+Everything server-side sits under `backend/`, so which half of the repo a file
+belongs to is visible from its path alone.
+
+| Piece | Notes |
+|---|---|
+| `backend/api/` | The five handlers + `api/lib/*` (Neon, canonical lookup, raw-price log, query cache, catalog regroup, CORS), copied verbatim — no behaviour change |
+| `backend/src/lib/` | The JS the handlers share: `text.js`, `categoria.js`, `match.js`, `money.js`, `catalogScore.js`. Mirrors of `lib/core/text.dart` and `categoria.dart`; when one changes the other must |
+| `backend/db/` | `schema.sql`, `migrate.mjs`, `seed.mjs` (81 canonical products, 106 aliases) |
+| `backend/test/` | 8 vitest files, 65 tests, all passing. `npm run test:api`; `flutter test` never descends into `backend/` |
+| Deploy shape | Vercel Root Directory = `backend`, so the Flutter half is outside the build context entirely. `vercel.json` (gru1, no build), `public/` stub so no source is served, `.vercelignore` for the dev-only parts of `backend/` |
+| `backend/tool/db/` + `/db-review` | Read-only canonical-coverage report and the command that reads it. Coverage today: **64%** (354/556 barcode-less descriptions in scope) |
+| Bundling | Never an issue — `pubspec.yaml` declares `assets/img/`, `assets/config/`, `assets/data/` by name, so no JS was ever in the APK |
+
+**Not done, needs a human:** the Vercel project still deploys from the old clone.
+Point `econo-mia-hugo` at this repo, set **Root Directory = `backend`**, leave
+"Include files outside root directory" off, and confirm `DATABASE_URL` is in the
+project env before the first deploy from here.
+
+---
+
 ## Lista parser rebuild (out of band, 2026-07-26)
 
 Post-Phase-12 hardening, not a reopening of it. The old parser read three

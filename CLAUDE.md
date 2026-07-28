@@ -105,12 +105,29 @@ edit, not a code change — which is the point.
 
 ## Backend
 
-Deployed Vercel functions — base URL is `api.baseUrl` in config, **not** a
-constant (each dev deploys their own project; `econo-mia-hugo.vercel.app` and
-`econo-mia.vercel.app` are different accounts). `/api/cep`, `/api/nfce`,
-`/api/precos`, `/api/suggest`, `/api/catalog`. **This repo is a client — never
-re-implement NFC-e parsing or price scraping in Dart.** Errors come back as
-`{error: "<snake_case>"}`.
+**The backend lives in this repo, under `backend/`** — in JS, deployed to Vercel.
+`backend/api/*.js` are the five handlers (`/api/cep`, `/api/nfce`, `/api/precos`,
+`/api/suggest`, `/api/catalog`), `backend/api/lib/*.js` is their server-only half
+(Neon connection, caches, persistence), `backend/src/lib/*.js` is logic shared
+between handlers, `backend/db/` holds the schema and seed. Nothing outside
+`backend/` is JS, and nothing inside it is Dart. Base URL is still `api.baseUrl`
+in config, **not** a constant (each dev deploys their own project;
+`econo-mia-hugo.vercel.app` and `econo-mia.vercel.app` are different accounts).
+Errors come back as `{error: "<snake_case>"}`.
+
+The Vercel project's **Root Directory is `backend`** — that is what makes
+`backend/api/precos.js` serve `/api/precos` and keeps the Flutter half out of the
+build entirely. Leave "Include files outside root directory" off. `npm` lives
+there too: run every `npm run …` from `backend/`, and `backend/.env.local`
+(gitignored) is where `DATABASE_URL` goes locally.
+
+Two halves, one repo, and the line between them matters: **NFC-e parsing, price
+scraping and offer matching stay in JS under `backend/`** — never re-implemented
+in Dart. `lib/` consumes the endpoints and owns nothing of their logic. A few
+pure functions are deliberately mirrored on both sides (`norm()` in
+`backend/src/lib/text.js` and `lib/core/text.dart`, the category keywords, the
+money parsers); when one changes, the other has to, or client and server stop
+agreeing on what two strings being "the same" means.
 
 `/api/precos` is **two-step**: a GET serves a cached result or answers
 `{needsFetch: true}`; on a miss the *device* fetches Menor Preço directly
@@ -148,7 +165,16 @@ flutter test
 flutter test test/savings_test.dart                    # single file
 flutter test --plain-name "computeSavings"              # single test by name
 flutter test test/screenshots.dart --update-goldens     # renders to test/shots/
+
+cd backend && npm run test:api                          # backend (vitest)
+cd backend && npm run db:migrate                        # apply db/schema.sql
+cd backend && npm run db:seed                           # canonical products + aliases
+cd backend && npm run db:review -- --json               # canonical coverage report
 ```
+
+The two test runners never meet: `flutter test` collects `*_test.dart` under
+`test/` and never descends into `backend/`; vitest is pointed at
+`backend/test/**/*.test.js` and never leaves it. Both must be clean.
 
 There is no emulator or device on this machine, so `test/screenshots.dart` is
 how UI gets eyeballed. It is not named `*_test.dart` on purpose — `flutter test`
@@ -180,6 +206,21 @@ lib/
   features/       one folder per screen: <name>_screen.dart, <name>_controller.dart
   widgets/        shared UI (bottom_nav, scan_chooser, phase_placeholder, wordmark)
 
+backend/          the whole server side; Vercel's Root Directory points here
+  api/            serverless functions, one file per endpoint —
+                  cep.js nfce.js precos.js suggest.js catalog.js
+    lib/          server-only: db.js (Neon), canonical.js (alias lookup),
+                  rawprices.js (append every offer), pricecache.js (1/day per query),
+                  catalog.js (the DISTINCT ON regroup), cors.js
+  src/lib/        shared between handlers — text.js (norm), categoria.js (classify),
+                  match.js (productSignature, guards, scoring), money.js, catalogScore.js
+  db/             schema.sql, migrate.mjs, seed.mjs (canonical products + aliases)
+  tool/db/        canonical-gaps.mjs — read-only coverage report (`/db-review`);
+                  queries.md — probe library
+  test/           *.test.js, run by vitest; `flutter test` never descends here
+  public/         stub index + reports/ — static write-ups (DB coverage, design
+                  notes) served at /reports/*.html, no auth, no build step
+
 test/
   *_test.dart           run by `flutter test`
   screenshots.dart       NOT run by `flutter test`; invoke explicitly (see Commands)
@@ -193,5 +234,11 @@ that belongs in `domain/`.
 
 ## Reference implementation
 
-`D:\Projects\EconoMia` is a React/Vite MVP of this app. It is **reference only**
-— read it for behaviour, layout and copy; never port its code or structure.
+`~/Projects/HMLabs/EconoMia` (a clone of `github.com/arthurfukushima/EconoMia`,
+`D:\Projects\EconoMia` on Windows) is the React/Vite MVP this app grew out of. It
+is **reference only** — read it for behaviour, layout and copy; never port its
+code or structure. The `api/`, `src/lib/` and `db/` it also contains are the
+*former* home of this repo's backend; they were migrated here on 2026-07-27 and
+that copy is now stale. Note it is still linked to the same Vercel project
+(`econo-mia-hugo`), so whichever of the two deploys last wins — the deploy must
+be repointed at this repo.

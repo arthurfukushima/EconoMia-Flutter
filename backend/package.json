@@ -1,0 +1,20 @@
+{
+  "name": "economia-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Vercel serverless functions + Neon schema for the EconoMia app. The Flutter client lives in lib/; this half of the repo is JS on purpose (see CLAUDE.md § Backend).",
+  "scripts": {
+    "test:api": "vitest run",
+    "db:migrate": "node db/migrate.mjs",
+    "db:seed": "node db/seed.mjs",
+    "db:review": "node tool/db/canonical-gaps.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "node-html-parser": "^6.1.13"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  }
+}

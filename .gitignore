@@ -57,3 +57,7 @@ assets/config/app_config.local.json
 
 # Firebase app config — per-developer Firebase project, not committed.
 android/app/google-services.json
+
+# Node — the server half of the repo lives in backend/ (its .env.local, holding
+# DATABASE_URL, is already covered by the *.local rule above).
+node_modules/
