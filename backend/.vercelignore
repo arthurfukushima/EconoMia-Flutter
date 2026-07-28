@@ -1,0 +1,9 @@
+# The Vercel project's Root Directory is `backend`, so the Flutter half of the repo
+# is already outside the build context — keep "Include files outside root directory"
+# switched OFF and none of android/, ios/, lib/, assets/ or the keystores can ever be
+# uploaded. What is left to exclude is the part of backend/ that is dev-only and has
+# no business inside a function bundle.
+test/
+tool/
+db/migrate.mjs
+db/seed.mjs

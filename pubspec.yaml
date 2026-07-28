@@ -1,0 +1,68 @@
+name: economia
+description: "EconoMia — escaneie sua nota fiscal e descubra onde economizar."
+publish_to: 'none'
+
+version: 1.0.2+20
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^3.3.2
+  freezed_annotation: ^3.1.0
+  geolocator: ^14.0.2
+  go_router: ^17.3.0
+  http: ^1.6.0
+  json_annotation: ^4.12.0
+  mobile_scanner: ^7.4.0
+  path_provider: ^2.1.6
+  sembast: ^3.8.9+1
+  sembast_web: ^2.4.5+1
+  shared_preferences: ^2.5.5
+  url_launcher: ^6.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.15.1
+  freezed: ^3.2.0
+  json_serializable: ^6.14.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/img/
+    # The whole folder, not the files by name: app_config.local.json is
+    # gitignored and only exists on some machines, and naming a missing asset
+    # explicitly fails the build. See lib/core/app_config.dart.
+    - assets/config/
+    # pt-BR grocery lexicon — see lib/core/staples.dart.
+    - assets/data/
+
+  # Google Fonts ships these three only as variable fonts, so each family is one
+  # file and weight is selected via FontVariation('wght', n) — see theme/fonts.dart.
+  fonts:
+    - family: Fredoka
+      fonts:
+        - asset: assets/fonts/Fredoka.ttf
+    - family: Baloo2
+      fonts:
+        - asset: assets/fonts/Baloo2.ttf
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/img/mia_logo_android.png"
+  image_path_ios: "assets/img/mia_logo_apple.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/img/mia_logo_android.png"

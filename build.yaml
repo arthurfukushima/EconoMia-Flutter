@@ -1,0 +1,11 @@
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          # Without this, a nested model is emitted as the object itself rather
+          # than as a Map. `jsonEncode` papers over that by calling `toJson`
+          # dynamically; sembast does not — it rejects the value outright. Every
+          # model here nests (Receipt → items → precos → cheapest), so this has
+          # to be on for anything to reach disk.
+          explicit_to_json: true

@@ -1,0 +1,51 @@
+{
+  "_note": "Recorded from GET /api/precos?gtin=7891000100103&local=-23.31,-51.16&raio=50 on 2026-07-25. stores[] truncated to 3. Note `cheapest` carries no `cod` and `gtin` came back padded to 14 digits.",
+  "gtin": "07891000100103",
+  "basis": "gtin",
+  "confidence": "high",
+  "cheapest": {
+    "priceCents": 545,
+    "store": "OSABOR DE CASA",
+    "bairro": "ALBA DO MAODR",
+    "addr": "RUA GOMEW DE PAULA 485, ALBA DO MAODR, PETWOLSA - PR",
+    "km": 2.5,
+    "datahora": "2026-07-25T02:35:18.669Z"
+  },
+  "stores": [
+    {
+      "priceCents": 5717,
+      "store": "BRASPLEIRINHO",
+      "bairro": "BACATERH",
+      "addr": "RUA BELFORTD RORO 1458, BACATERH, PETWOLSA - PE",
+      "cod": "lwtae9ewi1yn9yk21ycdgm24ajekigxerlmr1pvnvtrv2jdxz9qjeqivn3c1wkh9ikc5lquqm8su1x6m0inls",
+      "km": 1.17,
+      "datahora": "2026-07-25T03:09:06.669Z"
+    },
+    {
+      "priceCents": 6322,
+      "store": "TETRA DE DOCES",
+      "bairro": "AGUA FRIL",
+      "addr": "RUA ALBO SANTA MARIA 369, AGUA FRIL, TIWUCAS DO SULC - ES",
+      "cod": "869d4onj77nw5hfq863ze4mvk0w4j3qkke5mo4q7l4wrwayz3n6x3jpixayk4xce64ettea2wumvcpx7jx8c",
+      "km": 1.17,
+      "datahora": "2026-07-25T00:12:11.669Z"
+    },
+    {
+      "priceCents": 2036,
+      "store": "GOKOOD VIBIV",
+      "bairro": "BOW VISTU",
+      "addr": "RUA SANTDS DUMONTD, 880, BOW VISTU, LIANWRWS - ES",
+      "cod": "8f7ov6k8yftlxbx9cs5azw4wx9vonng3i3q53rr6vd78ool08tl5vnpj3ngqysapqqdhmzf8bj66b4d2n77t",
+      "km": 1.36,
+      "datahora": "2026-07-25T03:39:13.669Z"
+    }
+  ],
+  "range": {
+    "minCents": 545,
+    "maxCents": 6322
+  },
+  "nOffers": 18,
+  "nStores": 18,
+  "name": "VMENTOIM JAXONES",
+  "ncm": "320090108"
+}

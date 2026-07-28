@@ -1,0 +1,63 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+*.local
+.vercel
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Scratch renders from test/screenshots.dart (no device on this machine)
+test/shots/
+
+# Per-machine config overrides (backend host, timeouts, request pacing).
+# The committed defaults live in assets/config/app_config.json; copy
+# app_config.local.example.json to app_config.local.json to override them
+# locally. See lib/core/app_config.dart.
+assets/config/app_config.local.json
+
+# Firebase app config — per-developer Firebase project, not committed.
+android/app/google-services.json
+
+# Node — the server half of the repo lives in backend/ (its .env.local, holding
+# DATABASE_URL, is already covered by the *.local rule above).
+node_modules/

@@ -1,0 +1,9 @@
+{
+  "_note": "Copy this to app_config.local.json (same folder) to override the committed defaults on YOUR machine. That file is gitignored, so it never lands in a commit or on someone else's build. Name only what differs — every key not mentioned keeps its value from app_config.json.",
+
+  "_example_other_backend": "Each dev deploys their own Vercel project, and the two live under different accounts: econo-mia-hugo.vercel.app (the committed default) vs econo-mia.vercel.app. Uncomment the block below to use the latter.",
+
+  "api": {
+    "baseUrl": "https://econo-mia.vercel.app"
+  }
+}
