@@ -201,15 +201,32 @@ class _CatalogList extends ConsumerWidget {
     final sa = theme.sa;
     final category = ref.watch(catalogoCategoryProvider);
     final sort = ref.watch(catalogoSortProvider);
+    final search = ref.watch(catalogoSearchProvider);
     final items = visibleCatalogItems(
       catalog.items,
       category: category,
+      search: search,
       sort: sort,
     );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       children: [
+        TextField(
+          decoration: InputDecoration(
+            hintText: 'buscar produtos…',
+            isDense: true,
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: search.isNotEmpty
+                ? GestureDetector(
+                    onTap: () => ref.read(catalogoSearchProvider.notifier).state = '',
+                    child: Icon(Icons.close_rounded, color: sa.muted),
+                  )
+                : null,
+          ),
+          onChanged: (value) => ref.read(catalogoSearchProvider.notifier).state = value,
+        ),
+        const SizedBox(height: 12),
         SizedBox(
           height: 40,
           child: ListView(

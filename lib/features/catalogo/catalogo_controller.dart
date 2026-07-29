@@ -53,7 +53,10 @@ final catalogoSortProvider = StateProvider.autoDispose<CatalogoSort>((ref) => Ca
 /// catalog starts unfiltered.
 final catalogoCategoryProvider = StateProvider.autoDispose<String?>((ref) => null);
 
-/// Filters by category, then orders. Pure, so the ordering rules are testable
+/// Product search term, used to filter by name.
+final catalogoSearchProvider = StateProvider.autoDispose<String>((ref) => '');
+
+/// Filters by category, search term, then orders. Pure, so the ordering rules are testable
 /// without a widget or a live catalog.
 ///
 /// An item with no [CatalogItem.pct] (only one market carries it, so there is
@@ -62,11 +65,17 @@ final catalogoCategoryProvider = StateProvider.autoDispose<String?>((ref) => nul
 List<CatalogItem> visibleCatalogItems(
   List<CatalogItem> items, {
   String? category,
+  String search = '',
   CatalogoSort sort = CatalogoSort.barato,
 }) {
-  final filtered = category == null
+  var filtered = category == null
       ? [...items]
       : [for (final i in items) if (i.category == category) i];
+
+  if (search.isNotEmpty) {
+    final q = search.toLowerCase();
+    filtered = [for (final i in filtered) if (i.description.toLowerCase().contains(q)) i];
+  }
 
   filtered.sort(switch (sort) {
     CatalogoSort.barato => (a, b) => (a.pct ?? 200).compareTo(b.pct ?? 200),

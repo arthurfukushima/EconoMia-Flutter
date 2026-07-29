@@ -177,7 +177,18 @@ class _StorePickerSheetState extends State<_StorePickerSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.title, style: theme.textTheme.titleLarge),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(widget.title, style: theme.textTheme.titleLarge),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, color: sa.muted),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             TextField(
               decoration: const InputDecoration(hintText: 'buscar mercado…'),
