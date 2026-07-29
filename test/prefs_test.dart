@@ -1,4 +1,5 @@
 import 'package:economia/data/prefs.dart';
+import 'package:economia/data/models/user_profile.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,13 +23,16 @@ void main() {
     expect(prefs.productSearchHistory, ['leite', 'arroz']);
   });
 
-  test('re-searching a term moves it back to the front, case-insensitively, without a duplicate', () async {
-    final prefs = await newPrefs();
-    await prefs.addProductSearchHistory('Toddy');
-    await prefs.addProductSearchHistory('arroz');
-    await prefs.addProductSearchHistory('TODDY');
-    expect(prefs.productSearchHistory, ['TODDY', 'arroz']);
-  });
+  test(
+    're-searching a term moves it back to the front, case-insensitively, without a duplicate',
+    () async {
+      final prefs = await newPrefs();
+      await prefs.addProductSearchHistory('Toddy');
+      await prefs.addProductSearchHistory('arroz');
+      await prefs.addProductSearchHistory('TODDY');
+      expect(prefs.productSearchHistory, ['TODDY', 'arroz']);
+    },
+  );
 
   test('blank input is a no-op', () async {
     final prefs = await newPrefs();
@@ -53,5 +57,38 @@ void main() {
     await prefs.addProductSearchHistory('leite');
     await prefs.removeProductSearchHistory('arroz');
     expect(prefs.productSearchHistory, ['leite']);
+  });
+
+  group('userProfile', () {
+    test('is null until a profile is saved', () async {
+      final prefs = await newPrefs();
+
+      expect(prefs.userProfile, isNull);
+    });
+
+    test('persists the local display-name profile', () async {
+      final prefs = await newPrefs();
+      await prefs.setUserProfile(
+        const UserProfile(
+          displayName: 'Ana',
+          createdAt: 123,
+          authMode: UserProfile.localAuthMode,
+        ),
+      );
+
+      final profile = prefs.userProfile!;
+      expect(profile.displayName, 'Ana');
+      expect(profile.createdAt, 123);
+      expect(profile.authMode, UserProfile.localAuthMode);
+    });
+
+    test('malformed JSON reads as no profile', () async {
+      SharedPreferences.setMockInitialValues({
+        'economia.userProfile': '{"displayName":',
+      });
+      final prefs = Prefs(await SharedPreferences.getInstance());
+
+      expect(prefs.userProfile, isNull);
+    });
   });
 }

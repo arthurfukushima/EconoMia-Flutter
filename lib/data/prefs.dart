@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models/app_location.dart';
 import 'models/list_item.dart';
 import 'models/shopping_list.dart';
+import 'models/user_profile.dart';
 
 /// Overridden in `main()`, for the same reason as the repository: shared
 /// preferences load asynchronously exactly once, and nothing downstream should
@@ -33,6 +34,7 @@ class Prefs {
   static const _miaPointsKey = 'economia.miaPoints';
   static const _questsKey = 'economia.quests';
   static const _notificationsAskedKey = 'economia.notificationsAsked';
+  static const _userProfileKey = 'economia.userProfile';
   static const _searchHistoryMax = 8;
 
   /// The list index and which one is on screen.
@@ -71,11 +73,13 @@ class Prefs {
 
   int get miaPoints => _prefs.getInt(_miaPointsKey) ?? 0;
 
-  Future<void> setMiaPoints(int points) => _prefs.setInt(_miaPointsKey, points < 0 ? 0 : points);
+  Future<void> setMiaPoints(int points) =>
+      _prefs.setInt(_miaPointsKey, points < 0 ? 0 : points);
 
   String? get questsJson => _prefs.getString(_questsKey);
 
-  Future<void> setQuestsJson(String value) => _prefs.setString(_questsKey, value);
+  Future<void> setQuestsJson(String value) =>
+      _prefs.setString(_questsKey, value);
 
   // ---------------------------------------------------------------------------
   // Shopping lists
@@ -110,15 +114,19 @@ class Prefs {
     await _prefs.setString(
       _listsKey,
       jsonEncode([
-        ShoppingList(id: id, name: 'Minha Lista', createdAt: DateTime.now().millisecondsSinceEpoch)
-            .toJson(),
+        ShoppingList(
+          id: id,
+          name: 'Minha Lista',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+        ).toJson(),
       ]),
     );
     await _prefs.setString(_itemsKeyFor(id), legacyItems ?? '[]');
     await _prefs.setString(_activeListKey, id);
 
     final legacyStore = _prefs.getString(_listStoreKey);
-    if (legacyStore != null) await _prefs.setString(_storeKeyFor(id), legacyStore);
+    if (legacyStore != null)
+      await _prefs.setString(_storeKeyFor(id), legacyStore);
   }
 
   /// Ids only have to be unique on this device, so a timestamp plus a random
@@ -142,8 +150,10 @@ class Prefs {
     }
   }
 
-  Future<void> _writeLists(List<ShoppingList> lists) =>
-      _prefs.setString(_listsKey, jsonEncode([for (final l in lists) l.toJson()]));
+  Future<void> _writeLists(List<ShoppingList> lists) => _prefs.setString(
+    _listsKey,
+    jsonEncode([for (final l in lists) l.toJson()]),
+  );
 
   Future<ShoppingList> createList(String name) async {
     await initLists();
@@ -162,7 +172,8 @@ class Prefs {
     final name = newName.trim();
     if (name.isEmpty) return;
     await _writeLists([
-      for (final l in _readLists()) if (l.id == id) l.copyWith(name: name) else l,
+      for (final l in _readLists())
+        if (l.id == id) l.copyWith(name: name) else l,
     ]);
   }
 
@@ -176,7 +187,10 @@ class Prefs {
   /// answer to "was this the active one?".
   Future<String> deleteList(String id) async {
     final activeBefore = activeListId;
-    final remaining = [for (final l in _readLists()) if (l.id != id) l];
+    final remaining = [
+      for (final l in _readLists())
+        if (l.id != id) l,
+    ];
     await _writeLists(remaining);
     await _prefs.remove(_itemsKeyFor(id));
     await _prefs.remove(_storeKeyFor(id));
@@ -203,7 +217,8 @@ class Prefs {
     return lists.isNotEmpty ? lists.first.id : '';
   }
 
-  Future<void> setActiveListId(String id) => _prefs.setString(_activeListKey, id);
+  Future<void> setActiveListId(String id) =>
+      _prefs.setString(_activeListKey, id);
 
   /// One list's items, cached prices and all.
   ///
@@ -223,7 +238,8 @@ class Prefs {
     }
   }
 
-  Future<void> setItemsOf(String listId, List<ListItem> items) => _prefs.setString(
+  Future<void> setItemsOf(String listId, List<ListItem> items) =>
+      _prefs.setString(
         _itemsKeyFor(listId),
         jsonEncode([for (final i in items) i.toJson()]),
       );
@@ -249,17 +265,36 @@ class Prefs {
   Future<void> addProductSearchHistory(String name) {
     final term = name.trim();
     if (term.isEmpty) return Future.value();
-    final rest = productSearchHistory.where((t) => t.toLowerCase() != term.toLowerCase());
+    final rest = productSearchHistory.where(
+      (t) => t.toLowerCase() != term.toLowerCase(),
+    );
     final next = [term, ...rest].take(_searchHistoryMax).toList();
     return _prefs.setStringList(_productSearchHistoryKey, next);
   }
 
   Future<void> removeProductSearchHistory(String name) => _prefs.setStringList(
-        _productSearchHistoryKey,
-        productSearchHistory.where((t) => t != name).toList(),
-      );
+    _productSearchHistoryKey,
+    productSearchHistory.where((t) => t != name).toList(),
+  );
 
-  bool get notificationsAsked => _prefs.getBool(_notificationsAskedKey) ?? false;
+  bool get notificationsAsked =>
+      _prefs.getBool(_notificationsAskedKey) ?? false;
 
-  Future<void> setNotificationsAsked(bool value) => _prefs.setBool(_notificationsAskedKey, value);
+  Future<void> setNotificationsAsked(bool value) =>
+      _prefs.setBool(_notificationsAskedKey, value);
+
+  UserProfile? get userProfile {
+    final raw = _prefs.getString(_userProfileKey);
+    if (raw == null) return null;
+    try {
+      return UserProfile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setUserProfile(UserProfile profile) =>
+      _prefs.setString(_userProfileKey, jsonEncode(profile.toJson()));
+
+  Future<void> clearUserProfile() => _prefs.remove(_userProfileKey);
 }

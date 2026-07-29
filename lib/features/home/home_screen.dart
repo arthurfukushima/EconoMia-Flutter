@@ -11,6 +11,7 @@ import '../../widgets/staggered_entrance.dart';
 import '../gamification/gamification_controller.dart';
 import '../gamification/mission_widgets.dart';
 import '../lista/lista_controller.dart';
+import '../profile/profile_controller.dart';
 import 'home_controller.dart';
 
 String _greeting() {
@@ -42,6 +43,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(gamificationProvider);
+    final profile = ref.watch(profileControllerProvider);
     final gamification = ref.read(gamificationProvider.notifier);
     final Insights insights =
         ref.watch(homeInsightsProvider).value ?? _zeroInsights;
@@ -69,7 +71,14 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          StaggeredEntrance(index: 2, child: _SavingsHero(insights: insights)),
+          if (profile == null) ...[
+            StaggeredEntrance(
+              index: 2,
+              child: _LoginBanner(onTap: () => context.push('/perfil/login')),
+            ),
+            const SizedBox(height: 12),
+          ],
+          StaggeredEntrance(index: 3, child: _SavingsHero(insights: insights)),
           const SizedBox(height: 22),
           Text(
             'ATALHOS',
@@ -132,6 +141,67 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(height: 32),
           _DebugResetButton(onReset: gamification.reset),
         ],
+      ),
+    );
+  }
+}
+
+class _LoginBanner extends StatelessWidget {
+  const _LoginBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+
+    return Material(
+      color: sa.paper,
+      borderRadius: SaRadius.mdAll,
+      child: InkWell(
+        borderRadius: SaRadius.mdAll,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: SaRadius.mdAll,
+            border: Border.all(color: sa.stroke, width: 1.5),
+            boxShadow: sa.liftSm,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: sa.tintAmber,
+                  borderRadius: SaRadius.smAll,
+                ),
+                child: Icon(Icons.person_rounded, color: sa.ink, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Criar perfil', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Opcional: diga seu nome e continue usando a Mia do seu jeito.',
+                      style: theme.textTheme.bodyMedium!.copyWith(
+                        color: sa.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded, color: sa.muted),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -259,7 +329,6 @@ class _DebugResetButton extends StatelessWidget {
     );
   }
 }
-
 
 /// Forest-green card, Mia avatar, and — per the honesty rule — one of two
 /// truthful states: a real opportunity figure, or an onboarding nudge. Never

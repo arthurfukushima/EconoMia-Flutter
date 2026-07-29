@@ -9,6 +9,8 @@ import 'features/lista/lista_screen.dart';
 import 'features/mercado/mercado_screen.dart';
 import 'features/produto/busca_screen.dart';
 import 'features/produto/produto_screen.dart';
+import 'features/profile/create_profile_screen.dart';
+import 'features/profile/login_screen.dart';
 import 'features/receipt/receipt_screen.dart';
 import 'features/resumo/resumo_screen.dart';
 import 'features/scan/scan_mode.dart';
@@ -27,6 +29,16 @@ final router = GoRouter(
   initialLocation: '/splash',
   routes: [
     GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
+    GoRoute(
+      path: '/perfil/login',
+      parentNavigatorKey: _rootKey,
+      builder: (_, _) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/perfil/criar',
+      parentNavigatorKey: _rootKey,
+      builder: (_, _) => const CreateProfileScreen(),
+    ),
 
     StatefulShellRoute.indexedStack(
       builder: (_, _, shell) => AppShell(navigationShell: shell),
@@ -41,6 +53,7 @@ final router = GoRouter(
                 // opened it, but rendered above the shell (see parentNavigatorKey).
                 GoRoute(
                   path: 'notas',
+                  parentNavigatorKey: _rootKey,
                   builder: (_, _) => const HistoryScreen(),
                   routes: [
                     GoRoute(

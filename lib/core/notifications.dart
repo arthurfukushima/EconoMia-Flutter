@@ -27,11 +27,12 @@ abstract final class NotificationService {
 
     await _notifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(androidChannel);
 
     await _notifications.initialize(
-      const InitializationSettings(
+      settings: const InitializationSettings(
         android: AndroidInitializationSettings('launcher_icon'),
         iOS: DarwinInitializationSettings(),
       ),
@@ -41,14 +42,23 @@ abstract final class NotificationService {
   /// Request notification permission — Android 13+, iOS.
   /// Safe to call multiple times (will skip if already asked).
   static Future<bool> requestPermission() async {
-    final ios = _notifications.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final ios = _notifications
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (ios != null) {
-      return await ios.requestPermissions(alert: true, badge: true, sound: true) ?? false;
+      return await ios.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          ) ??
+          false;
     }
 
-    final android = _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _notifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       return await android.requestNotificationsPermission() ?? false;
     }
@@ -73,14 +83,16 @@ abstract final class NotificationService {
       hour,
       minute,
     );
-    final when = scheduled.isBefore(now) ? scheduled.add(const Duration(days: 1)) : scheduled;
+    final when = scheduled.isBefore(now)
+        ? scheduled.add(const Duration(days: 1))
+        : scheduled;
 
     await _notifications.zonedSchedule(
-      _dailyReminderId,
-      title,
-      body,
-      when,
-      const NotificationDetails(
+      id: _dailyReminderId,
+      title: title,
+      body: body,
+      scheduledDate: when,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'economia_daily',
           'Lembretes diários',
@@ -90,14 +102,13 @@ abstract final class NotificationService {
         iOS: DarwinNotificationDetails(),
       ),
       matchDateTimeComponents: DateTimeComponents.time,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 
   /// Cancel any pending scheduled notification with id.
   static Future<void> cancel(int id) async {
-    await _notifications.cancel(id);
+    await _notifications.cancel(id: id);
   }
 
   /// Cancel the daily reminder specifically.

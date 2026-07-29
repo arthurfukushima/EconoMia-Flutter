@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:economia/app.dart';
+import 'package:economia/data/models/user_profile.dart';
 import 'package:economia/data/prefs.dart';
 import 'package:economia/data/receipt_repository.dart';
 import 'package:economia/domain/quests.dart';
@@ -107,6 +108,69 @@ void main() {
     await bootToHome(tester);
 
     expect(bottomNavText('1'), findsNothing);
+  });
+
+  testWidgets('home profile banner opens the v1 create-profile flow', (
+    tester,
+  ) async {
+    await bootToHome(tester);
+
+    expect(find.text('Criar perfil'), findsOneWidget);
+
+    await tester.tap(find.text('Criar perfil'));
+    await tester.pumpAndSettle();
+    expect(find.text('Criar conta'), findsOneWidget);
+
+    await tester.tap(find.text('Criar conta'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nome de exibição'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).last, 'Ana');
+    await tester.tap(find.text('Concluir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('MISSOES EM DESTAQUE'), findsOneWidget);
+    expect(find.text('Criar perfil'), findsNothing);
+  });
+
+  testWidgets('home hides the profile banner when a local profile exists', (
+    tester,
+  ) async {
+    await bootToHome(
+      tester,
+      initialPrefs: {
+        'economia.userProfile': jsonEncode(
+          const UserProfile(
+            displayName: 'Ana',
+            createdAt: 123,
+            authMode: UserProfile.localAuthMode,
+          ).toJson(),
+        ),
+      },
+    );
+
+    expect(find.text('Criar perfil'), findsNothing);
+  });
+
+  testWidgets('future login and social buttons are inert placeholders', (
+    tester,
+  ) async {
+    await bootToHome(tester);
+
+    await tester.tap(find.text('Criar perfil'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Já tenho conta'));
+    await tester.pump();
+    expect(find.text('Esse caminho entra nas próximas fases.'), findsOneWidget);
+
+    await tester.tap(find.text('Continuar com Google'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Continuar com Facebook'));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the scan button asks which kind of scan', (tester) async {
