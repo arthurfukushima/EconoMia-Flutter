@@ -67,24 +67,30 @@ class AppShell extends ConsumerWidget {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Wordmark(),
-        titleSpacing: 18,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1.5),
-          child: Divider(height: 1.5, color: Theme.of(context).sa.stroke),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              const LocationBar(),
-              Expanded(child: navigationShell),
-            ],
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            title: const Wordmark(),
+            titleSpacing: 18,
+            floating: true,
+            snap: true,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1.5),
+              child: Divider(height: 1.5, color: Theme.of(context).sa.stroke),
+            ),
           ),
-          const QuestToast(),
         ],
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                const LocationBar(),
+                Expanded(child: navigationShell),
+              ],
+            ),
+            const QuestToast(),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNav(
         currentIndex: navigationShell.currentIndex,
