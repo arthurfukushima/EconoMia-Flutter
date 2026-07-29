@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/app_config.dart';
+import 'core/notifications.dart';
 import 'core/staples.dart';
 import 'data/prefs.dart';
 import 'data/receipt_repository.dart';
@@ -28,6 +29,7 @@ Future<void> main() async {
   // synchronous and assumes the index exists.
   await prefs.initLists();
   final db = await openAppDatabase();
+  await NotificationService.init();
 
   runApp(
     ProviderScope(

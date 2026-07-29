@@ -32,6 +32,7 @@ class Prefs {
   static const _productSearchHistoryKey = 'economia.productSearchHistory';
   static const _miaPointsKey = 'economia.miaPoints';
   static const _questsKey = 'economia.quests';
+  static const _notificationsAskedKey = 'economia.notificationsAsked';
   static const _searchHistoryMax = 8;
 
   /// The list index and which one is on screen.
@@ -257,4 +258,8 @@ class Prefs {
         _productSearchHistoryKey,
         productSearchHistory.where((t) => t != name).toList(),
       );
+
+  bool get notificationsAsked => _prefs.getBool(_notificationsAskedKey) ?? false;
+
+  Future<void> setNotificationsAsked(bool value) => _prefs.setBool(_notificationsAskedKey, value);
 }

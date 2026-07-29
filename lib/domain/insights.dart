@@ -23,6 +23,18 @@ DateTime? purchaseDate(Receipt receipt) {
   return createdAt == null ? null : DateTime.fromMillisecondsSinceEpoch(createdAt);
 }
 
+/// Most recent purchase date across all receipts, or null if none can be determined.
+DateTime? mostRecentPurchase(List<Receipt> receipts) {
+  DateTime? max;
+  for (final r in receipts) {
+    final d = purchaseDate(r);
+    if (d != null && (max == null || d.isAfter(max))) {
+      max = d;
+    }
+  }
+  return max;
+}
+
 /// Spending in one category across every note, and its share of the total.
 typedef CategorySpend = ({Categoria cat, int spentCents, int pct});
 

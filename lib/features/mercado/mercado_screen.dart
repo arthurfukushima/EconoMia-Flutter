@@ -81,6 +81,36 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
     super.dispose();
   }
 
+  Future<void> _confirmClear() async {
+    final sa = Theme.of(context).sa;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Apagar itens conferidos?'),
+        content: const Text(
+          'Os produtos escaneados nesta ida ao mercado serão removidos da lista.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Apagar', style: TextStyle(color: sa.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() {
+      _checked.clear();
+      _scannedStores = const [];
+      _error = null;
+      _lastAcceptedCameraDigits = null;
+    });
+  }
+
   void _selectStore(String? cod, {Offer? store}) {
     setState(() {
       _codStr = cod;
@@ -183,7 +213,17 @@ class _MercadoScreenState extends ConsumerState<MercadoScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('No mercado')),
+      appBar: AppBar(
+        title: const Text('No mercado'),
+        actions: [
+          if (_checked.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded),
+              tooltip: 'Limpar histórico',
+              onPressed: _confirmClear,
+            ),
+        ],
+      ),
       body: Column(
         children: [
           const LocationBar(),

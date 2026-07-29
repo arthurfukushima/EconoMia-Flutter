@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/notifications.dart';
+import '../data/receipt_repository.dart';
+import '../domain/insights.dart';
+import '../domain/notifications_copy.dart';
+import '../features/gamification/gamification_controller.dart';
 import '../features/scan/scan_chooser.dart';
 import '../features/gamification/quest_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +31,31 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Schedule daily reminder on gamification or receipts change. The quests
+    // might refresh (a new daily), and the receipts might update (a new scan).
+    ref.watch(gamificationProvider);
+    ref.watch(receiptRepositoryProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final receipts = await ref.read(receiptRepositoryProvider).listReceipts();
+        final gamification = ref.read(gamificationProvider.notifier);
+        final view = gamification.view();
+        final lastPurchase = mostRecentPurchase(receipts);
+        final daysSinceLastScan = lastPurchase == null
+            ? null
+            : DateTime.now().difference(lastPurchase).inDays;
+        final copy = dailyReminderCopy(quests: view, daysSinceLastScan: daysSinceLastScan);
+
+        if (copy != null) {
+          await NotificationService.scheduleDaily(title: 'EconoMia', body: copy);
+        } else {
+          await NotificationService.cancelDaily();
+        }
+      } catch (_) {
+        // Silently skip scheduling if init wasn't called (test environment)
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Wordmark(),
