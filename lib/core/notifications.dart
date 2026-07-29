@@ -33,7 +33,7 @@ abstract final class NotificationService {
 
     await _notifications.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('launcher_icon'),
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(),
       ),
     );
