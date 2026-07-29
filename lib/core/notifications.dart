@@ -15,8 +15,8 @@ abstract final class NotificationService {
   /// Call once from [main] before [runApp].
   static Future<void> init() async {
     tz.initializeTimeZones();
-    final timezoneString = await FlutterTimezone.getLocalTimezone() as String;
-    tz.setLocalLocation(tz.getLocation(timezoneString));
+    final timezone = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timezone.identifier));
 
     const androidChannel = AndroidNotificationChannel(
       'economia_daily',
