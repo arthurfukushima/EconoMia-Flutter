@@ -41,7 +41,6 @@ final router = GoRouter(
                 // opened it, but rendered above the shell (see parentNavigatorKey).
                 GoRoute(
                   path: 'notas',
-                  parentNavigatorKey: _rootKey,
                   builder: (_, _) => const HistoryScreen(),
                   routes: [
                     GoRoute(

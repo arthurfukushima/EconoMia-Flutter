@@ -5,6 +5,7 @@ import '../core/notifications.dart';
 import '../data/receipt_repository.dart';
 import '../domain/insights.dart';
 import '../domain/notifications_copy.dart';
+import '../features/action_indicators/action_indicators.dart';
 import '../features/gamification/gamification_controller.dart';
 import '../features/scan/scan_chooser.dart';
 import '../features/gamification/quest_toast.dart';
@@ -34,20 +35,29 @@ class AppShell extends ConsumerWidget {
     // Schedule daily reminder on gamification or receipts change. The quests
     // might refresh (a new daily), and the receipts might update (a new scan).
     ref.watch(gamificationProvider);
+    final actionIndicators = ref.watch(actionIndicatorsProvider);
     ref.watch(receiptRepositoryProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
-        final receipts = await ref.read(receiptRepositoryProvider).listReceipts();
+        final receipts = await ref
+            .read(receiptRepositoryProvider)
+            .listReceipts();
         final gamification = ref.read(gamificationProvider.notifier);
         final view = gamification.view();
         final lastPurchase = mostRecentPurchase(receipts);
         final daysSinceLastScan = lastPurchase == null
             ? null
             : DateTime.now().difference(lastPurchase).inDays;
-        final copy = dailyReminderCopy(quests: view, daysSinceLastScan: daysSinceLastScan);
+        final copy = dailyReminderCopy(
+          quests: view,
+          daysSinceLastScan: daysSinceLastScan,
+        );
 
         if (copy != null) {
-          await NotificationService.scheduleDaily(title: 'EconoMia', body: copy);
+          await NotificationService.scheduleDaily(
+            title: 'EconoMia',
+            body: copy,
+          );
         } else {
           await NotificationService.cancelDaily();
         }
@@ -65,15 +75,26 @@ class AppShell extends ConsumerWidget {
           child: Divider(height: 1.5, color: Theme.of(context).sa.stroke),
         ),
       ),
-      body: Stack(children: [
-        Column(children: [const LocationBar(), Expanded(child: navigationShell)]),
-        const QuestToast(),
-      ]),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              const LocationBar(),
+              Expanded(child: navigationShell),
+            ],
+          ),
+          const QuestToast(),
+        ],
+      ),
       bottomNavigationBar: BottomNav(
         currentIndex: navigationShell.currentIndex,
+        indicators: actionIndicators,
         // `initialLocation: true` on a re-tap pops that branch back to its root,
         // which is the behaviour people expect from a tab bar.
-        onSelect: (i) => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
+        onSelect: (i) => navigationShell.goBranch(
+          i,
+          initialLocation: i == navigationShell.currentIndex,
+        ),
         onScan: () => _openScanChooser(context),
       ),
     );

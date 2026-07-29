@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:economia/app.dart';
 import 'package:economia/data/prefs.dart';
 import 'package:economia/data/receipt_repository.dart';
+import 'package:economia/domain/quests.dart';
 import 'package:economia/router.dart';
 import 'package:economia/widgets/bottom_nav.dart';
 import 'package:flutter/material.dart';
@@ -12,8 +15,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   tearDown(() => router.go('/splash'));
 
-  Future<void> bootToHome(WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+  Future<void> bootToHome(
+    WidgetTester tester, {
+    Map<String, Object> initialPrefs = const {},
+  }) async {
+    SharedPreferences.setMockInitialValues(initialPrefs);
     final prefs = Prefs(await SharedPreferences.getInstance());
     final repo = await tester.runAsync(
       () async => ReceiptRepository(
@@ -34,6 +40,19 @@ void main() {
 
   Finder tabText(String label) =>
       find.descendant(of: find.byType(BottomNav), matching: find.text(label));
+
+  Finder bottomNavText(String text) =>
+      find.descendant(of: find.byType(BottomNav), matching: find.text(text));
+
+  String questsJsonWithClaimableDaily() => jsonEncode(
+    QuestState(
+      counts: const {'note': 1},
+      daily: QuestTrack(
+        at: DateTime.now().millisecondsSinceEpoch,
+        slots: const [QuestSlot(id: 'd_nota', base: 0)],
+      ),
+    ).toJson(),
+  );
 
   testWidgets('splash hands over to Inicio', (tester) async {
     await bootToHome(tester);
@@ -64,6 +83,32 @@ void main() {
     expect(find.text('MISSOES EM DESTAQUE'), findsOneWidget);
   });
 
+  testWidgets('home tab badge reflects claimable mission rewards', (
+    tester,
+  ) async {
+    await bootToHome(
+      tester,
+      initialPrefs: {'economia.quests': questsJsonWithClaimableDaily()},
+    );
+
+    expect(bottomNavText('1'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Resgatar +30').first);
+    await tester.tap(find.text('Resgatar +30').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(bottomNavText('1'), findsNothing);
+  });
+
+  testWidgets('home tab has no badge when no action is pending', (
+    tester,
+  ) async {
+    await bootToHome(tester);
+
+    expect(bottomNavText('1'), findsNothing);
+  });
+
   testWidgets('the scan button asks which kind of scan', (tester) async {
     await bootToHome(tester);
 
@@ -74,27 +119,28 @@ void main() {
     expect(find.text('Produto'), findsOneWidget);
   });
 
-  testWidgets('creating a list closes its naming dialog without controller errors', (
-    tester,
-  ) async {
-    await bootToHome(tester);
+  testWidgets(
+    'creating a list closes its naming dialog without controller errors',
+    (tester) async {
+      await bootToHome(tester);
 
-    await tester.tap(tabText('Lista'));
-    await tester.pumpAndSettle();
+      await tester.tap(tabText('Lista'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Minha Lista'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Minha Lista'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Nova lista'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Nova lista'));
+      await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField).last, 'Feira');
-    await tester.tap(find.text('Salvar'));
-    await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'Feira');
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Feira'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('Feira'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('routes pushed above the shell hide the tab bar', (tester) async {
     await bootToHome(tester);
