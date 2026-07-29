@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/measure.dart';
 import '../../core/money.dart';
@@ -11,6 +12,7 @@ import '../../data/prefs.dart';
 import '../../domain/lista.dart';
 import '../../domain/lista_parse.dart';
 import '../../domain/stores.dart';
+import '../../domain/lista_share.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/cat_chip.dart';
 import '../../widgets/store_picker.dart';
@@ -189,32 +191,32 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     final controller = TextEditingController(text: initial);
     try {
       return await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Ex: Churrasco, Casa, Mês',
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Ex: Churrasco, Casa, Mês',
+            ),
+            onSubmitted: (v) =>
+                Navigator.pop(context, v.trim().isEmpty ? null : v.trim()),
           ),
-          onSubmitted: (v) =>
-              Navigator.pop(context, v.trim().isEmpty ? null : v.trim()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final v = controller.text.trim();
+                Navigator.pop(context, v.isEmpty ? null : v);
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final v = controller.text.trim();
-              Navigator.pop(context, v.isEmpty ? null : v);
-            },
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
       );
     } finally {
       controller.dispose();
@@ -224,15 +226,14 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
   Future<String?> _showNamePrompt({
     required String title,
     required String initial,
-  }) =>
-      showDialog<String>(
-        context: context,
-        builder: (context) => _TextPromptDialog(
-          title: title,
-          initial: initial,
-          hintText: 'Ex: Churrasco, Casa, MÃªs',
-        ),
-      );
+  }) => showDialog<String>(
+    context: context,
+    builder: (context) => _TextPromptDialog(
+      title: title,
+      initial: initial,
+      hintText: 'Ex: Churrasco, Casa, MÃªs',
+    ),
+  );
 
   Future<bool?> _confirmDelete(String name) => showDialog<bool>(
     context: context,
@@ -273,6 +274,33 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _shareList(String name, List<ListItem> items) async {
+    if (items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Adicione itens antes de compartilhar.')),
+      );
+      return;
+    }
+
+    final text = formatShoppingListForShare(listName: name, items: items);
+    try {
+      final result = await SharePlus.instance.share(
+        ShareParams(text: text, title: name),
+      );
+      if (!mounted || result.status != ShareResultStatus.unavailable) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('O compartilhamento não está disponível.'),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível compartilhar a lista.')),
+      );
+    }
   }
 
   Future<void> _openStorePicker(
@@ -325,16 +353,46 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
       case _TrocarLoja():
         _openStorePicker(stores, effectiveCod);
       case _VerMercados():
-        final market = await showModalBottomSheet<String?>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => _MarketsSheet(
-            markets: marketRanking(ref.read(listaControllerProvider)),
-          ),
-        );
-        if (market != null) {
-          _selectStore(market);
-        }
+        _openCompare(effectiveCod);
+    }
+  }
+
+  /// The whole market comparison: best market for the list, whether a second
+  /// stop pays for itself, and every market ranked. Picking one prices the list
+  /// there — that is what `_BasketSummary` then shows.
+  ///
+  /// Markets reached by name search (`_extra`) carry nothing listed, so they
+  /// have no `MarketOption` and are rightly absent here.
+  Future<void> _openCompare(String? effectiveCod) async {
+    final planning = [
+      for (final i in ref.read(listaControllerProvider))
+        if (!i.checked) i,
+    ];
+    final markets = marketRanking(planning);
+    if (markets.isEmpty) return;
+
+    final anchor = effectiveCod != null &&
+            markets.any((m) => m.cod == effectiveCod)
+        ? effectiveCod
+        : markets.first.cod;
+
+    final market = await showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _MarketsSheet(
+        markets: markets,
+        itemCount: planning.length,
+        anchorCod: anchor,
+        split: bestSplit(planning, anchor),
+        unpriced: planning.where((i) => activeOption(i) == null).length,
+        onRefresh: () {
+          Navigator.pop(context);
+          ref.read(listaControllerProvider.notifier).refresh();
+        },
+      ),
+    );
+    if (market != null) {
+      _selectStore(market);
     }
   }
 
@@ -357,7 +415,15 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
       ref.read(listaControllerProvider.notifier).priceStale();
     });
 
-    final stores = mergeStores(listStores(items), _extra);
+    // A ticked line is already in the cart: it must not steer which market wins
+    // for what is still to buy. The rows below still render every item — only
+    // the comparison narrows.
+    final planning = [
+      for (final i in items)
+        if (!i.checked) i,
+    ];
+
+    final stores = mergeStores(listStores(planning), _extra);
     // A market that no longer carries anything listed (its only item was
     // removed, or its re-price failed) would strand every row on "sem preço
     // neste mercado" — so a selection that isn't in the picker any more simply
@@ -368,8 +434,8 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     for (final s in stores) {
       if (s.cod == effectiveCod) here = s;
     }
-    final basket = effectiveCod == null ? null : basketAt(items, effectiveCod);
-    final ranking = marketRanking(items);
+    final basket = effectiveCod == null ? null : basketAt(planning, effectiveCod);
+    final ranking = marketRanking(planning);
 
     final lists = ref.watch(listsProvider);
     final activeId = ref.watch(activeListIdProvider);
@@ -390,6 +456,18 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
                   _openPricesMenu(stores, effectiveCod, ranking.length),
             ),
           ),
+          if (ranking.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openCompare(effectiveCod),
+                  icon: const Icon(Icons.compare_arrows_rounded, size: 18),
+                  label: Text('Comparar mercados (${ranking.length})'),
+                ),
+              ),
+            ),
         ],
         Expanded(
           child: ListView(
@@ -399,6 +477,8 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
                 name: activeName,
                 count: lists.length,
                 onTap: _openListMenu,
+                onShare: () => _shareList(activeName, items),
+                canShare: items.isNotEmpty,
               ),
               const SizedBox(height: 10),
               _AddForm(
@@ -445,7 +525,7 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
                   _BasketSummary(
                     here: here,
                     basket: basket,
-                    itemCount: items.length,
+                    itemCount: planning.length,
                   ),
                 ],
                 const SizedBox(height: 10),
@@ -776,6 +856,7 @@ class _ItemRow extends ConsumerWidget {
         ),
         if (options.length > 1)
           _Collapse(
+            key: ValueKey('${item.id}:${item.chosenKey ?? ""}'),
             title: '${options.length} opções',
             children: [
               // Tier 1 (the literal product typed) and tier 2 (formulation/
@@ -1353,7 +1434,10 @@ class _MarketRow extends StatelessWidget {
                       : theme.textTheme.bodyMedium,
                 ),
                 Text(
-                  '${market.count} de $itemCount ${_plural(itemCount, "item", "itens")} · total parcial',
+                  '${market.count} de $itemCount ${_plural(itemCount, "item", "itens")} · '
+                  // A total over 6 of 10 items is not a shopping total, and is
+                  // labelled as what it is.
+                  '${market.count == itemCount ? "total" : "total parcial"}',
                   style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
                 ),
               ],
@@ -1373,7 +1457,7 @@ class _MarketRow extends StatelessWidget {
 /// The app's collapsible: no divider lines, tight padding, left-aligned
 /// children — same shape Mercado uses for its nutrition panel.
 class _Collapse extends StatelessWidget {
-  const _Collapse({required this.title, required this.children});
+  const _Collapse({super.key, required this.title, required this.children});
 
   final String title;
   final List<Widget> children;
@@ -1465,14 +1549,30 @@ class _PricesMenu extends StatelessWidget {
   }
 }
 
+/// The market comparison: the best single market for the list, whether adding a
+/// second stop pays for itself, and every market ranked. Pops the chosen cod.
 class _MarketsSheet extends StatelessWidget {
-  const _MarketsSheet({required this.markets});
+  const _MarketsSheet({
+    required this.markets,
+    required this.itemCount,
+    required this.anchorCod,
+    required this.split,
+    required this.unpriced,
+    required this.onRefresh,
+  });
 
   final List<MarketOption> markets;
+  final int itemCount;
+  final String anchorCod;
+  final SplitOption? split;
+  final int unpriced;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final sa = theme.sa;
+    final anchor = markets.firstWhere((m) => m.cod == anchorCod);
 
     return SafeArea(
       top: false,
@@ -1482,36 +1582,209 @@ class _MarketsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Mercados próximos', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Comparar mercados', style: theme.textTheme.titleLarge),
+                IconButton(
+                  icon: Icon(Icons.close_rounded, color: sa.muted),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  for (final m in markets)
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => Navigator.pop(context, m.cod),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: _MarketRow(
-                            market: m,
-                            itemCount: markets.fold(
-                              0,
-                              (sum, item) => sum + item.count,
-                            ),
-                            selected: false,
-                            onTap: () => Navigator.pop(context, m.cod),
-                          ),
-                        ),
+                  // Always name the best market, even when the shopper has
+                  // another one picked — "qual mercado é o melhor?" is the
+                  // question this sheet exists for, and a chosen market must
+                  // not quietly stand in for the answer.
+                  _SheetLabel('Melhor para a sua lista'),
+                  const SizedBox(height: 6),
+                  _PickRow(market: markets.first, itemCount: itemCount),
+                  if (anchor.cod != markets.first.cod) ...[
+                    const SizedBox(height: 12),
+                    _SheetLabel('O mercado escolhido'),
+                    const SizedBox(height: 6),
+                    _PickRow(market: anchor, itemCount: itemCount),
+                  ],
+                  const SizedBox(height: 14),
+                  _SheetLabel('Vale dividir em dois mercados?'),
+                  const SizedBox(height: 6),
+                  if (split != null)
+                    _SplitCard(
+                      anchor: anchor,
+                      split: split!,
+                      itemCount: itemCount,
+                    )
+                  else
+                    Text(
+                      'Um mercado só já resolve — nenhum segundo mercado por perto '
+                      'compensa a viagem.',
+                      style: theme.textTheme.bodyMedium!.copyWith(
+                        color: sa.muted,
                       ),
                     ),
+                  const SizedBox(height: 14),
+                  _SheetLabel('Todos os mercados'),
+                  for (final m in markets)
+                    _PickRow(
+                      market: m,
+                      itemCount: itemCount,
+                      selected: m.cod == anchorCod,
+                    ),
+                  // Prices that never arrived are in no market's basket, so
+                  // every total here is short by them. Say so rather than let
+                  // the comparison look complete.
+                  if (unpriced > 0) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '$unpriced ${_plural(unpriced, "item", "itens")} ainda sem preço — '
+                            'fora de todas as contas acima.',
+                            style: theme.textTheme.labelMedium!.copyWith(
+                              color: sa.muted,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: onRefresh,
+                          child: const Text('atualizar'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A market row that picks that market when tapped — the sheet's only action.
+class _PickRow extends StatelessWidget {
+  const _PickRow({
+    required this.market,
+    required this.itemCount,
+    this.selected = true,
+  });
+
+  final MarketOption market;
+  final int itemCount;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: () => Navigator.pop(context, market.cod),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: _MarketRow(
+          market: market,
+          itemCount: itemCount,
+          selected: selected,
+          onTap: () => Navigator.pop(context, market.cod),
+        ),
+      ),
+    ),
+  );
+}
+
+class _SheetLabel extends StatelessWidget {
+  const _SheetLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text(
+      text,
+      style: theme.textTheme.labelLarge!.copyWith(color: theme.sa.amberPress),
+    );
+  }
+}
+
+/// The second stop, priced against shopping the anchor market alone.
+class _SplitCard extends StatelessWidget {
+  const _SplitCard({
+    required this.anchor,
+    required this.split,
+    required this.itemCount,
+  });
+
+  final MarketOption anchor;
+  final SplitOption split;
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+    final where = [
+      split.store ?? 'Loja',
+      if ((split.bairro ?? '').isNotEmpty) split.bairro!,
+    ].join(' · ');
+    final km = split.km == null ? '' : ' (${_num(split.km!)} km)';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: sa.paper2,
+        borderRadius: SaRadius.mdAll,
+        border: Border.all(color: sa.stroke, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Indo também ao $where$km', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 6),
+          if (split.cheaperCount > 0)
+            Text.rich(
+              TextSpan(
+                style: theme.textTheme.bodyMedium,
+                children: [
+                  TextSpan(
+                    text:
+                        '${split.cheaperCount} ${_plural(split.cheaperCount, "item", "itens")} '
+                        'mais ${_plural(split.cheaperCount, "barato", "baratos")} lá · dá pra economizar ',
+                  ),
+                  TextSpan(
+                    text: formatBRL(split.savedCents),
+                    style: theme.textTheme.titleSmall!.copyWith(
+                      color: sa.green,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (split.extraCount > 0)
+            Text(
+              '+ ${split.extraCount} ${_plural(split.extraCount, "item", "itens")} que '
+              '${anchor.store ?? "o outro mercado"} não tem',
+              style: theme.textTheme.bodyMedium,
+            ),
+          const SizedBox(height: 6),
+          Text(
+            // The one-market total is only quoted alongside when the split
+            // covers exactly the same items. With extras it covers more, and
+            // two totals over different shopping are not a comparison.
+            'Os dois juntos: ${anchor.count + split.extraCount} de $itemCount '
+            '${_plural(itemCount, "item", "itens")} · ${formatBRL(split.totalCents)}'
+            '${split.extraCount == 0 ? ' (só em ${anchor.store ?? "um mercado"}: ${formatBRL(anchor.totalCents)})' : ''}',
+            style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+          ),
+        ],
       ),
     );
   }
@@ -1555,6 +1828,8 @@ class _ListHeader extends StatelessWidget {
     required this.name,
     required this.count,
     required this.onTap,
+    required this.onShare,
+    required this.canShare,
   });
 
   final String name;
@@ -1563,6 +1838,8 @@ class _ListHeader extends StatelessWidget {
   /// appears once there is genuinely a choice to make.
   final int count;
   final VoidCallback onTap;
+  final VoidCallback onShare;
+  final bool canShare;
 
   @override
   Widget build(BuildContext context) {
@@ -1593,6 +1870,12 @@ class _ListHeader extends StatelessWidget {
                   '1 de $count  ',
                   style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
                 ),
+              IconButton(
+                onPressed: canShare ? onShare : null,
+                icon: const Icon(Icons.share_rounded, size: 19),
+                tooltip: 'compartilhar $name',
+                visualDensity: VisualDensity.compact,
+              ),
               Icon(Icons.expand_more_rounded, color: sa.muted),
             ],
           ),

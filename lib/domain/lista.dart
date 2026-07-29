@@ -115,7 +115,12 @@ List<MarketOption> marketRanking(List<ListItem> items) {
   final ranked = byCod.values.toList()
     ..sort((a, b) {
       final byCount = b.count.compareTo(a.count);
-      return byCount != 0 ? byCount : a.totalCents.compareTo(b.totalCents);
+      if (byCount != 0) return byCount;
+      final byTotal = a.totalCents.compareTo(b.totalCents);
+      if (byTotal != 0) return byTotal;
+      // Same basket for the same money: take the nearer one. Without this a
+      // market 25 km away ties with one down the street.
+      return (a.km ?? double.infinity).compareTo(b.km ?? double.infinity);
     });
   return ranked;
 }
@@ -142,4 +147,109 @@ ListBasket basketAt(List<ListItem> items, String cod) {
     totalCents += lineCents(offer.priceCents, item.qty);
   }
   return (carried: carried, totalCents: totalCents);
+}
+
+/// What a second stop has to buy you before it is worth suggesting.
+///
+/// Below this, "divida sua compra em dois mercados" costs more in fuel, parking
+/// and another queue than it saves — advice that makes the app wrong even when
+/// its arithmetic is right.
+///
+/// ponytail: flat R$ 5,00, not scaled by the distance between the two markets.
+const splitWorthCents = 500;
+
+/// A second market weighed against the one you would otherwise shop at alone.
+///
+/// [savedCents] counts only the *shared* lines — a line the anchor market
+/// doesn't carry is not a saving, since you were buying it somewhere else
+/// regardless. That is [extraCount]: counted, shown, never turned into money.
+typedef SplitOption = ({
+  String cod,
+  String? store,
+  String? bairro,
+  double? km,
+  int cheaperCount,
+  int savedCents,
+  int extraCount,
+  int totalCents,
+});
+
+/// The best second stop to add to market [cod], or null when no other market is
+/// worth the trip.
+///
+/// Deliberately anchored rather than a free search over every pair: the cheapest
+/// pair of markets can cover fewer items than the best single one, and then its
+/// total is over a different shopping than the number it would be compared to.
+/// Anchoring keeps both sides of "vale dividir?" about the same list.
+SplitOption? bestSplit(List<ListItem> items, String cod) {
+  final cods = <String>{};
+  for (final item in items) {
+    for (final s in activeOption(item)?.stores ?? const <Offer>[]) {
+      if (s.cod != null && s.cod != cod) cods.add(s.cod!);
+    }
+  }
+
+  SplitOption? best;
+  for (final other in cods) {
+    var cheaperCount = 0;
+    var savedCents = 0;
+    var extraCount = 0;
+    var totalCents = 0;
+    Offer? seen;
+
+    for (final item in items) {
+      final here = offerAt(item, cod);
+      final there = offerAt(item, other);
+      if (there != null) seen = there;
+      if (there == null) {
+        // Only the anchor carries it (or nobody does, and the line is outside
+        // both baskets).
+        if (here != null) totalCents += lineCents(here.priceCents, item.qty);
+        continue;
+      }
+      final thereCents = lineCents(there.priceCents, item.qty);
+      if (here == null) {
+        extraCount++;
+        totalCents += thereCents;
+        continue;
+      }
+      final hereCents = lineCents(here.priceCents, item.qty);
+      if (thereCents < hereCents) {
+        cheaperCount++;
+        // The difference of the two line totals, not `lineCents` of the price
+        // difference: the saving shown has to equal the difference of the two
+        // totals shown, to the centavo.
+        savedCents += hereCents - thereCents;
+        totalCents += thereCents;
+      } else {
+        totalCents += hereCents;
+      }
+    }
+
+    if (seen == null) continue;
+    final option = (
+      cod: other,
+      store: seen.store,
+      bairro: seen.bairro,
+      km: seen.km,
+      cheaperCount: cheaperCount,
+      savedCents: savedCents,
+      extraCount: extraCount,
+      totalCents: totalCents,
+    );
+    if (best == null ||
+        option.savedCents > best.savedCents ||
+        (option.savedCents == best.savedCents &&
+            (option.extraCount > best.extraCount ||
+                (option.extraCount == best.extraCount &&
+                    (option.km ?? double.infinity) <
+                        (best.km ?? double.infinity))))) {
+      best = option;
+    }
+  }
+
+  if (best == null) return null;
+  return best.savedCents < splitWorthCents && best.extraCount == 0
+      ? null
+      : best;
 }

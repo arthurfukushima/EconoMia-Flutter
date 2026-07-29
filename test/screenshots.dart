@@ -673,9 +673,12 @@ void main() {
       stores: [
         Offer(cod: '1', priceCents: 398, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4),
         Offer(cod: '2', priceCents: 410, store: 'SUPER MUFFATO', bairro: 'Centro', km: 1.1),
+        // An atacado that undercuts on the staples but stocks little else —
+        // the shape the "vale dividir?" answer exists for.
+        Offer(cod: '4', priceCents: 349, store: 'ATACADÃO', bairro: 'Judith', km: 4.6),
       ],
-      nStores: 2,
-      nOffers: 7,
+      nStores: 3,
+      nOffers: 8,
     );
     // A vague term with real candidates behind it — this is the row whose
     // "trocar produto" collapsible the shot opens.
@@ -689,8 +692,9 @@ void main() {
           stores: [
             Offer(cod: '1', priceCents: 2990, store: 'CONDOR', bairro: 'Gleba Palhano', km: 2.4),
             Offer(cod: '2', priceCents: 3190, store: 'SUPER MUFFATO', bairro: 'Centro', km: 1.1),
+            Offer(cod: '4', priceCents: 2690, store: 'ATACADÃO', bairro: 'Judith', km: 4.6),
           ],
-          nStores: 2,
+          nStores: 3,
         ),
         ProductOption(
           key: 'seca',
@@ -837,7 +841,7 @@ void main() {
     await tester.drag(find.byType(ListaScreen), Offset(0, -by));
     await tester.pumpAndSettle();
     // `.first`: two rows can legitimately carry the same collapsible label
-    // ("trocar produto (2 opções)"), and the top-most one is the intended
+    // ("2 opções"), and the top-most one is the intended
     // target in every shot here.
     await tester.tap(find.text(label).first);
   }
@@ -848,7 +852,7 @@ void main() {
     await listaShot(
       tester,
       'lista',
-      after: () => scrollAndTap(tester, 'trocar produto (2 opções)', 400),
+      after: () => scrollAndTap(tester, '2 opções', 400),
     );
   });
 
@@ -880,6 +884,19 @@ void main() {
   // plus the market ranking (coverage first, partial total labelled as partial).
   testWidgets('shots — lista, ranking de mercados', (tester) async {
     await listaShot(tester, 'lista_mercado', listStore: '1');
+  });
+
+  // "Comparar mercados": the best market for the list, whether a second stop
+  // pays for itself (CONDOR + ATACADÃO, which undercuts it on leite and carne),
+  // every market ranked, and the honest tail — one line still without a price
+  // is in nobody's total.
+  testWidgets('shots — lista, comparar mercados', (tester) async {
+    await listaShot(
+      tester,
+      'lista_comparar',
+      listStore: '1',
+      after: () => tester.tap(find.textContaining('Comparar mercados')),
+    );
   });
 
   // Phase 10 (Mercado) has no shot here, same as Phase 3's ScanScreen: the

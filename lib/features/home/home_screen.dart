@@ -14,13 +14,14 @@ import '../lista/lista_controller.dart';
 import '../profile/profile_controller.dart';
 import 'home_controller.dart';
 
-String _greeting() {
+String _greeting({String? playerName}) {
   final h = DateTime.now().hour;
-  return h < 12
+  final baseGreeting = h < 12
       ? 'Bom dia'
       : h < 18
       ? 'Boa tarde'
       : 'Boa noite';
+  return playerName != null ? '$baseGreeting, $playerName' : baseGreeting;
 }
 
 const _zeroInsights = (
@@ -59,7 +60,7 @@ class HomeScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_greeting(), style: Theme.of(context).textTheme.titleMedium),
+          Text(_greeting(playerName: profile?.displayName), style: Theme.of(context).textTheme.titleMedium),
           StaggeredEntrance(
             index: 1,
             child: Semantics(

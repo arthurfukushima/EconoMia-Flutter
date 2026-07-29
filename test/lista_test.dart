@@ -216,6 +216,178 @@ void main() {
     test('a fractional weight is rounded once, at the line', () {
       expect(lineCents(499, 1.235), 616);
     });
+
+    test('the nearer market wins an otherwise exact tie', () {
+      final one = ListItem(
+        id: '1',
+        raw: 'Leite',
+        name: 'Leite',
+        precos: const Precos(
+          cheapest: Offer(priceCents: 1),
+          stores: [
+            Offer(cod: 'far', store: 'A', priceCents: 400, km: 22),
+            Offer(cod: 'near', store: 'B', priceCents: 400, km: 0.8),
+          ],
+        ),
+      );
+      expect(marketRanking([one]).map((m) => m.cod), ['near', 'far']);
+    });
+  });
+
+  group('bestSplit', () {
+    /// Two items CONDOR carries; MUFFATO undercuts it on the first by R$ 6,00
+    /// a unit and doesn't stock the second.
+    final items = [
+      ListItem(
+        id: '1',
+        raw: '2x Leite',
+        name: 'Leite',
+        qty: 2,
+        precos: const Precos(
+          cheapest: Offer(priceCents: 1),
+          stores: [
+            Offer(cod: '1', store: 'CONDOR', priceCents: 1000, km: 2.4),
+            Offer(cod: '2', store: 'MUFFATO', priceCents: 400, km: 1.1),
+          ],
+        ),
+      ),
+      ListItem(
+        id: '2',
+        raw: 'Banana',
+        name: 'Banana',
+        precos: const Precos(
+          cheapest: Offer(priceCents: 1),
+          stores: [Offer(cod: '1', store: 'CONDOR', priceCents: 499, km: 2.4)],
+        ),
+      ),
+    ];
+
+    test('the saving is exactly the gap between the two totals shown', () {
+      final split = bestSplit(items, '1')!;
+      expect(split.cod, '2');
+      expect(split.cheaperCount, 1);
+      expect(split.extraCount, 0);
+      // 2 × 400 + 499 — MUFFATO's leite, CONDOR's banana.
+      expect(split.totalCents, 800 + 499);
+      expect(
+        split.savedCents,
+        basketAt(items, '1').totalCents - split.totalCents,
+        reason: 'the number shown must reconcile the two totals shown',
+      );
+    });
+
+    test('a market that only adds items it alone stocks is still worth it', () {
+      final list = [
+        ListItem(
+          id: '1',
+          raw: 'Leite',
+          name: 'Leite',
+          precos: const Precos(
+            cheapest: Offer(priceCents: 1),
+            stores: [Offer(cod: '1', store: 'CONDOR', priceCents: 400)],
+          ),
+        ),
+        ListItem(
+          id: '2',
+          raw: 'Queijo',
+          name: 'Queijo',
+          precos: const Precos(
+            cheapest: Offer(priceCents: 1),
+            stores: [Offer(cod: '2', store: 'MUFFATO', priceCents: 2999)],
+          ),
+        ),
+      ];
+      final split = bestSplit(list, '1')!;
+      expect(split.cod, '2');
+      expect(split.extraCount, 1);
+      expect(
+        split.savedCents,
+        0,
+        reason: 'an item the anchor never stocked was never a saving',
+      );
+      expect(split.totalCents, 400 + 2999);
+    });
+
+    test('a trip that saves less than splitWorthCents is not suggested', () {
+      final list = [
+        ListItem(
+          id: '1',
+          raw: 'Leite',
+          name: 'Leite',
+          precos: const Precos(
+            cheapest: Offer(priceCents: 1),
+            stores: [
+              Offer(cod: '1', store: 'CONDOR', priceCents: 449),
+              Offer(cod: '2', store: 'MUFFATO', priceCents: 448),
+            ],
+          ),
+        ),
+      ];
+      expect(bestSplit(list, '1'), isNull);
+    });
+
+    test('no second market at all → null', () {
+      expect(bestSplit([items.last], '1'), isNull);
+      expect(bestSplit(const [], '1'), isNull);
+    });
+
+    test('a fractional weight saves the gap between two line totals', () {
+      final list = [
+        ListItem(
+          id: '1',
+          raw: '1.235kg Banana',
+          name: 'Banana',
+          qty: 1.235,
+          unit: 'kg',
+          precos: const Precos(
+            cheapest: Offer(priceCents: 1),
+            stores: [
+              Offer(cod: '1', store: 'CONDOR', priceCents: 999),
+              Offer(cod: '2', store: 'MUFFATO', priceCents: 499),
+            ],
+          ),
+        ),
+      ];
+      final split = bestSplit(list, '1')!;
+      expect(split.savedCents, lineCents(999, 1.235) - lineCents(499, 1.235));
+      expect(split.savedCents, 1234 - 616);
+    });
+
+    test('the biggest saving wins, then the nearer market', () {
+      final list = [
+        ListItem(
+          id: '1',
+          raw: 'Leite',
+          name: 'Leite',
+          precos: const Precos(
+            cheapest: Offer(priceCents: 1),
+            stores: [
+              Offer(cod: '1', store: 'CONDOR', priceCents: 2000),
+              Offer(cod: 'meh', store: 'A', priceCents: 1400, km: 0.5),
+              Offer(cod: 'best', store: 'B', priceCents: 1000, km: 9),
+            ],
+          ),
+        ),
+      ];
+      expect(bestSplit(list, '1')!.cod, 'best');
+
+      final tied = [
+        ListItem(
+          id: '1',
+          raw: 'Leite',
+          name: 'Leite',
+          precos: const Precos(
+            cheapest: Offer(priceCents: 1),
+            stores: [
+              Offer(cod: '1', store: 'CONDOR', priceCents: 2000),
+              Offer(cod: 'far', store: 'A', priceCents: 1000, km: 9),
+              Offer(cod: 'near', store: 'B', priceCents: 1000, km: 0.5),
+            ],
+          ),
+        ),
+      ];
+      expect(bestSplit(tied, '1')!.cod, 'near');
+    });
   });
 
   group('ListaController pricing', () {
