@@ -191,8 +191,9 @@ class ListaController extends Notifier<List<ListItem>> {
     final item = _byId(id);
     if (item == null) return;
     await _update(id, (it) => it.copyWith(checked: !it.checked));
-    if (!item.checked)
+    if (!item.checked) {
       ref.read(gamificationProvider.notifier).track('list_check');
+    }
   }
 
   Future<void> remove(String id) => removeMany({id});
@@ -213,6 +214,40 @@ class ListaController extends Notifier<List<ListItem>> {
     final item = moved.removeAt(oldIndex);
     moved.insert(newIndex, item);
     await _write(moved);
+  }
+
+  /// Reorders only the rows currently visible in a filtered section while
+  /// preserving the position of rows in the other section. This lets the UI
+  /// keep unchecked and checked items separate without losing drag-and-drop.
+  Future<void> reorderVisible(
+    List<String> visibleIds,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    if (oldIndex < 0 || oldIndex >= visibleIds.length) return;
+    if (newIndex < 0 || newIndex >= visibleIds.length) return;
+    if (oldIndex == newIndex) return;
+
+    final visible = [
+      for (final id in visibleIds)
+        for (final item in state)
+          if (item.id == id) item,
+    ];
+    if (visible.length != visibleIds.length) return;
+
+    final reordered = [...visible];
+    final item = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, item);
+
+    final positions = [
+      for (var i = 0; i < state.length; i++)
+        if (visibleIds.contains(state[i].id)) i,
+    ];
+    final next = [...state];
+    for (var i = 0; i < positions.length; i++) {
+      next[positions[i]] = reordered[i];
+    }
+    await _write(next);
   }
 
   /// Applies one of the readings the row's "?" offered. Re-prices only when the
@@ -239,8 +274,9 @@ class ListaController extends Notifier<List<ListItem>> {
       for (final it in state)
         if (it.id == id) after else it,
     ]);
-    if ((before.unit == 'kg') != (unit == 'kg'))
+    if ((before.unit == 'kg') != (unit == 'kg')) {
       await _price([after], force: true);
+    }
   }
 
   /// Switches which of a vague term's candidate products this line is priced

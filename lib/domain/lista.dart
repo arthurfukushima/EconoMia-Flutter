@@ -140,14 +140,40 @@ typedef ListBasket = ({int carried, int totalCents});
 ListBasket basketAt(List<ListItem> items, String cod) {
   var carried = 0;
   var totalCents = 0;
-  for (final item in items) {
-    final offer = offerAt(item, cod);
-    if (offer == null) continue;
+  for (final line in basketLinesAt(items, cod)) {
+    if (line.offer == null) continue;
     carried++;
-    totalCents += lineCents(offer.priceCents, item.qty);
+    totalCents += line.totalCents;
   }
   return (carried: carried, totalCents: totalCents);
 }
+
+/// One list line as it prices at one market: the product actually matched, how
+/// much of it to buy, and what that comes to there.
+///
+/// A line the market doesn't carry keeps its place with a null [offer] rather
+/// than being dropped — "não vende aqui" is the honest half of a breakdown, and
+/// silently omitting it would make a partial basket read as a complete one.
+typedef BasketLine = ({
+  ListItem item,
+  Offer? offer,
+  String? product,
+  int totalCents,
+});
+
+/// The whole list, line by line, priced at one market. Same order as [items].
+List<BasketLine> basketLinesAt(List<ListItem> items, String cod) => [
+      for (final item in items)
+        () {
+          final offer = offerAt(item, cod);
+          return (
+            item: item,
+            offer: offer,
+            product: activeOption(item)?.name,
+            totalCents: offer == null ? 0 : lineCents(offer.priceCents, item.qty),
+          );
+        }(),
+    ];
 
 /// What a second stop has to buy you before it is worth suggesting.
 ///
@@ -162,15 +188,19 @@ const splitWorthCents = 500;
 ///
 /// [savedCents] counts only the *shared* lines — a line the anchor market
 /// doesn't carry is not a saving, since you were buying it somewhere else
-/// regardless. That is [extraCount]: counted, shown, never turned into money.
+/// regardless. That is [extra]: counted, shown, never turned into money.
+///
+/// [cheaper] and [extra] name the lines rather than only counting them: "vale
+/// dividir" is advice you have to be able to act on, and "2 itens mais baratos
+/// lá" without saying which two is not.
 typedef SplitOption = ({
   String cod,
   String? store,
   String? bairro,
   double? km,
-  int cheaperCount,
+  List<ListItem> cheaper,
+  List<ListItem> extra,
   int savedCents,
-  int extraCount,
   int totalCents,
 });
 
@@ -191,9 +221,9 @@ SplitOption? bestSplit(List<ListItem> items, String cod) {
 
   SplitOption? best;
   for (final other in cods) {
-    var cheaperCount = 0;
+    final cheaper = <ListItem>[];
+    final extra = <ListItem>[];
     var savedCents = 0;
-    var extraCount = 0;
     var totalCents = 0;
     Offer? seen;
 
@@ -209,13 +239,13 @@ SplitOption? bestSplit(List<ListItem> items, String cod) {
       }
       final thereCents = lineCents(there.priceCents, item.qty);
       if (here == null) {
-        extraCount++;
+        extra.add(item);
         totalCents += thereCents;
         continue;
       }
       final hereCents = lineCents(here.priceCents, item.qty);
       if (thereCents < hereCents) {
-        cheaperCount++;
+        cheaper.add(item);
         // The difference of the two line totals, not `lineCents` of the price
         // difference: the saving shown has to equal the difference of the two
         // totals shown, to the centavo.
@@ -232,16 +262,16 @@ SplitOption? bestSplit(List<ListItem> items, String cod) {
       store: seen.store,
       bairro: seen.bairro,
       km: seen.km,
-      cheaperCount: cheaperCount,
+      cheaper: cheaper,
+      extra: extra,
       savedCents: savedCents,
-      extraCount: extraCount,
       totalCents: totalCents,
     );
     if (best == null ||
         option.savedCents > best.savedCents ||
         (option.savedCents == best.savedCents &&
-            (option.extraCount > best.extraCount ||
-                (option.extraCount == best.extraCount &&
+            (option.extra.length > best.extra.length ||
+                (option.extra.length == best.extra.length &&
                     (option.km ?? double.infinity) <
                         (best.km ?? double.infinity))))) {
       best = option;
@@ -249,7 +279,5 @@ SplitOption? bestSplit(List<ListItem> items, String cod) {
   }
 
   if (best == null) return null;
-  return best.savedCents < splitWorthCents && best.extraCount == 0
-      ? null
-      : best;
+  return best.savedCents < splitWorthCents && best.extra.isEmpty ? null : best;
 }

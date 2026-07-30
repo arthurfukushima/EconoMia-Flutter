@@ -45,6 +45,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+
+# Golden-image diffs written on a screenshots.dart mismatch
+test/failures/
 
 # Scratch renders from test/screenshots.dart (no device on this machine)
 test/shots/

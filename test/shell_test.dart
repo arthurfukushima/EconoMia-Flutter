@@ -76,7 +76,7 @@ void main() {
 
     await tester.tap(tabText('Lista'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Ex: 12'), findsOneWidget);
+    expect(find.textContaining('Adicionar item'), findsOneWidget);
     expect(find.textContaining('Sua lista'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.home_outlined));

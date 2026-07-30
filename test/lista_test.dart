@@ -209,6 +209,20 @@ void main() {
       },
     );
 
+    test('basketLinesAt keeps what the market does not carry, priced at 0', () {
+      final lines = basketLinesAt(items, '2');
+      expect(lines.length, 2, reason: 'a dropped line hides a partial basket');
+      expect(lines.first.totalCents, 796);
+      expect(lines.first.offer?.store, 'MUFFATO');
+      expect(lines.last.offer, isNull);
+      expect(lines.last.totalCents, 0);
+      // Same money as the summary, from the same lines.
+      expect(
+        lines.fold(0, (sum, l) => sum + l.totalCents),
+        basketAt(items, '2').totalCents,
+      );
+    });
+
     test('listStores is the picker without an extra fetch, nearest-first', () {
       expect(listStores(items).map((s) => s.cod), ['2', '1']);
     });
@@ -265,8 +279,8 @@ void main() {
     test('the saving is exactly the gap between the two totals shown', () {
       final split = bestSplit(items, '1')!;
       expect(split.cod, '2');
-      expect(split.cheaperCount, 1);
-      expect(split.extraCount, 0);
+      expect(split.cheaper.map((i) => i.name), ['Leite']);
+      expect(split.extra, isEmpty);
       // 2 × 400 + 499 — MUFFATO's leite, CONDOR's banana.
       expect(split.totalCents, 800 + 499);
       expect(
@@ -299,7 +313,7 @@ void main() {
       ];
       final split = bestSplit(list, '1')!;
       expect(split.cod, '2');
-      expect(split.extraCount, 1);
+      expect(split.extra.map((i) => i.name), ['Queijo']);
       expect(
         split.savedCents,
         0,
@@ -752,6 +766,30 @@ void main() {
       ]);
       expect(_onDisk(container).map((i) => i.id), ['b', 'c', 'a']);
     });
+
+    test(
+      'reorderVisible moves a filtered section without disturbing the other section',
+      () async {
+        final container = await boot(
+          items: const [
+            ListItem(id: 'a', raw: 'Arroz', name: 'Arroz'),
+            ListItem(id: 'b', raw: 'Feijao', name: 'Feijao', checked: true),
+            ListItem(id: 'c', raw: 'Cafe', name: 'Cafe'),
+          ],
+        );
+
+        await container
+            .read(listaControllerProvider.notifier)
+            .reorderVisible(['a', 'c'], 0, 1);
+
+        expect(container.read(listaControllerProvider).map((i) => i.id), [
+          'c',
+          'b',
+          'a',
+        ]);
+        expect(_onDisk(container).map((i) => i.id), ['c', 'b', 'a']);
+      },
+    );
 
     test('a blank description adds nothing', () async {
       final container = await boot();

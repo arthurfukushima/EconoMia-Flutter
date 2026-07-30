@@ -883,7 +883,12 @@ void main() {
   // …and, scrolled down, "sem preço neste mercado" on what CONDOR doesn't carry
   // plus the market ranking (coverage first, partial total labelled as partial).
   testWidgets('shots — lista, ranking de mercados', (tester) async {
-    await listaShot(tester, 'lista_mercado', listStore: '1');
+    await listaShot(
+      tester,
+      'lista_mercado',
+      listStore: '1',
+      after: () => tester.drag(find.byType(ListaScreen), const Offset(0, -520)),
+    );
   });
 
   // "Comparar mercados": the best market for the list, whether a second stop
@@ -895,7 +900,25 @@ void main() {
       tester,
       'lista_comparar',
       listStore: '1',
-      after: () => tester.tap(find.textContaining('Comparar mercados')),
+      after: () => tester.tap(find.widgetWithText(OutlinedButton, 'Comparar')),
+    );
+  });
+
+  // …and one market's basket itemised: the product each line was actually
+  // priced as, how much of it, and what that comes to there — including the
+  // lines CONDOR doesn't sell, which is why the total says 3 de 6.
+  testWidgets('shots — lista, itens no mercado', (tester) async {
+    await listaShot(
+      tester,
+      'lista_comparar_itens',
+      listStore: '1',
+      after: () async {
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Comparar'));
+        await tester.pumpAndSettle();
+        // The chosen market (CONDOR) is the second breakdown in the sheet —
+        // the first belongs to "melhor para a sua lista" (MUFFATO).
+        await tester.tap(find.text('ver os itens').at(1));
+      },
     );
   });
 

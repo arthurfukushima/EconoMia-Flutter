@@ -184,45 +184,6 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     }
   }
 
-  Future<String?> _promptName({
-    required String title,
-    required String initial,
-  }) async {
-    final controller = TextEditingController(text: initial);
-    try {
-      return await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(title),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Ex: Churrasco, Casa, Mês',
-            ),
-            onSubmitted: (v) =>
-                Navigator.pop(context, v.trim().isEmpty ? null : v.trim()),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final v = controller.text.trim();
-                Navigator.pop(context, v.isEmpty ? null : v);
-              },
-              child: const Text('Salvar'),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
-  }
-
   Future<String?> _showNamePrompt({
     required String title,
     required String initial,
@@ -327,39 +288,9 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     _selectStore(picked.store?.cod);
   }
 
-  Future<void> _openPricesMenu(
-    List<Offer> stores,
-    String? effectiveCod,
-    int marketCount,
-  ) async {
-    Offer? here;
-    for (final s in stores) {
-      if (s.cod == effectiveCod) here = s;
-    }
-
-    final action = await showModalBottomSheet<_PricesAction>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _PricesMenu(
-        currentStore: here,
-        marketCount: marketCount,
-        onTapStore: () => Navigator.pop(context, const _TrocarLoja()),
-        onTapMarkets: () => Navigator.pop(context, const _VerMercados()),
-      ),
-    );
-    if (action == null || !mounted) return;
-
-    switch (action) {
-      case _TrocarLoja():
-        _openStorePicker(stores, effectiveCod);
-      case _VerMercados():
-        _openCompare(effectiveCod);
-    }
-  }
-
   /// The whole market comparison: best market for the list, whether a second
   /// stop pays for itself, and every market ranked. Picking one prices the list
-  /// there — that is what `_BasketSummary` then shows.
+  /// there — that is what the market summary shows.
   ///
   /// Markets reached by name search (`_extra`) carry nothing listed, so they
   /// have no `MarketOption` and are rightly absent here.
@@ -371,8 +302,8 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     final markets = marketRanking(planning);
     if (markets.isEmpty) return;
 
-    final anchor = effectiveCod != null &&
-            markets.any((m) => m.cod == effectiveCod)
+    final anchor =
+        effectiveCod != null && markets.any((m) => m.cod == effectiveCod)
         ? effectiveCod
         : markets.first.cod;
 
@@ -381,10 +312,9 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
       isScrollControlled: true,
       builder: (_) => _MarketsSheet(
         markets: markets,
-        itemCount: planning.length,
+        items: planning,
         anchorCod: anchor,
         split: bestSplit(planning, anchor),
-        unpriced: planning.where((i) => activeOption(i) == null).length,
         onRefresh: () {
           Navigator.pop(context);
           ref.read(listaControllerProvider.notifier).refresh();
@@ -430,12 +360,24 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
     // doesn't apply. The stored pick is left alone: it becomes valid again as
     // soon as that market carries something.
     final effectiveCod = stores.any((s) => s.cod == _selCod) ? _selCod : null;
-    Offer? here;
-    for (final s in stores) {
-      if (s.cod == effectiveCod) here = s;
-    }
-    final basket = effectiveCod == null ? null : basketAt(planning, effectiveCod);
     final ranking = marketRanking(planning);
+    final pending = [
+      for (final item in items)
+        if (!item.checked) item,
+    ];
+    final completed = [
+      for (final item in items)
+        if (item.checked) item,
+    ];
+    final checkedCount = completed.length;
+
+    MarketOption? summaryMarket;
+    if (effectiveCod != null) {
+      for (final market in ranking) {
+        if (market.cod == effectiveCod) summaryMarket = market;
+      }
+    }
+    summaryMarket ??= ranking.isEmpty ? null : ranking.first;
 
     final lists = ref.watch(listsProvider);
     final activeId = ref.watch(activeListIdProvider);
@@ -446,41 +388,21 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
 
     return Column(
       children: [
-        if (items.isNotEmpty && stores.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: StorePickerRow(
-              prefix: 'Preços em: ',
-              label: here != null ? storeLabel(here) : 'Menor preço por perto',
-              onTap: () =>
-                  _openPricesMenu(stores, effectiveCod, ranking.length),
-            ),
-          ),
-          if (ranking.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _openCompare(effectiveCod),
-                  icon: const Icon(Icons.compare_arrows_rounded, size: 18),
-                  label: Text('Comparar mercados (${ranking.length})'),
-                ),
-              ),
-            ),
-        ],
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
+              Text('Lista de compras', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 12),
               _ListHeader(
                 name: activeName,
-                count: lists.length,
                 onTap: _openListMenu,
                 onShare: () => _shareList(activeName, items),
                 canShare: items.isNotEmpty,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
+              _ProgressSummary(checked: checkedCount, total: items.length),
+              const SizedBox(height: 14),
               _AddForm(
                 controller: _input,
                 onSubmit: _input.text.trim().isEmpty ? null : _add,
@@ -497,43 +419,62 @@ class _ListaScreenState extends ConsumerState<ListaScreen> {
                 _Banner(
                   error: true,
                   text:
-                      'Não foi possível consultar os preços agora — a fonte (Menor Preço / Nota '
-                      'Paraná) está indisponível. Seus itens estão salvos; tente "atualizar preços" '
-                      'em instantes.',
+                      'Não foi possível consultar os preços agora. Seus itens estão salvos.',
+                  actionLabel: 'Atualizar preços',
+                  onAction: () =>
+                      ref.read(listaControllerProvider.notifier).refresh(),
                 ),
               ],
               const SizedBox(height: 18),
               if (items.isEmpty)
-                Text(
-                  'Sua lista está vazia. Escreva do seu jeito — categoria (Carne), marca (Toddy) ou '
-                  'com quantidade (4x Tomates) — e a Mia procura o melhor preço por perto.',
-                  style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
-                )
+                _EmptyListHint(color: sa.muted)
               else ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Itens (${items.length})',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                    ),
-                  ],
-                ),
-                if (here != null && basket != null) ...[
-                  const SizedBox(height: 10),
-                  _BasketSummary(
-                    here: here,
-                    basket: basket,
+                if (summaryMarket != null) ...[
+                  _MarketSummary(
+                    market: summaryMarket,
                     itemCount: planning.length,
+                    selected: effectiveCod != null,
+                    onChange: stores.isEmpty
+                        ? null
+                        : () => _openStorePicker(stores, effectiveCod),
+                    onCompare: ranking.length < 2
+                        ? null
+                        : () => _openCompare(effectiveCod),
+                  ),
+                  const SizedBox(height: 18),
+                ],
+                Text('Para comprar', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 10),
+                if (pending.isEmpty)
+                  _AllItemsDoneHint(color: sa.muted)
+                else
+                  _ReorderableItemsCard(
+                    items: pending,
+                    pricing: pricing,
+                    cod: effectiveCod,
+                    onReorder: (oldIndex, newIndex) => ref
+                        .read(listaControllerProvider.notifier)
+                        .reorderVisible(
+                          [for (final item in pending) item.id],
+                          oldIndex,
+                          newIndex,
+                        ),
+                  ),
+                if (completed.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _CompletedItemsSection(
+                    items: completed,
+                    pricing: pricing,
+                    cod: effectiveCod,
+                    onReorder: (oldIndex, newIndex) => ref
+                        .read(listaControllerProvider.notifier)
+                        .reorderVisible(
+                          [for (final item in completed) item.id],
+                          oldIndex,
+                          newIndex,
+                        ),
                   ),
                 ],
-                const SizedBox(height: 10),
-                _ReorderableItemsCard(
-                  items: items,
-                  pricing: pricing,
-                  cod: effectiveCod,
-                ),
                 const SizedBox(height: 12),
                 Text(
                   'Preços de notas fiscais recentes na sua região (Menor Preço / Nota Paraná).',
@@ -556,39 +497,64 @@ class _AddForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: TextField(
-            controller: controller,
-            // A single-line field (maxLines: 1) discards every newline in
-            // its value, typed or pasted — so pasting a multi-line list out
-            // of Notes/WhatsApp would silently collapse into one run-on
-            // item. Unbounded so those newlines survive into `_add()`,
-            // which already splits on them (`parseInput`); submission stays
-            // on the button, not Enter, since Enter now means "new line".
-            maxLines: null,
-            keyboardType: TextInputType.multiline,
-            decoration: const InputDecoration(
-              hintText:
-                  'Ex: 12 Pães, 2,5kg Carne, Refrigerante 2l… (ou cole uma lista)',
-              isDense: true,
+    final sa = Theme.of(context).sa;
+
+    return TextField(
+      controller: controller,
+      // A single-line field (maxLines: 1) discards every newline in its value,
+      // typed or pasted — so pasting a multi-line list out of Notes/WhatsApp
+      // would silently collapse into one run-on item. Unbounded so those
+      // newlines survive into `_add()`, which already splits on them
+      // (`parseInput`); submission stays on the button, not Enter, since Enter
+      // now means "new line".
+      minLines: 1,
+      maxLines: 3,
+      keyboardType: TextInputType.multiline,
+      decoration: InputDecoration(
+        hintText: 'Adicionar item…',
+        // No helper line: the examples live in the empty-list hint, which is
+        // exactly where someone with nothing on the list is looking.
+        fillColor: sa.paper,
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 60,
+          minHeight: 60,
+        ),
+        suffixIcon: Padding(
+          padding: const EdgeInsets.all(6),
+          child: FilledButton(
+            onPressed: onSubmit,
+            style: FilledButton.styleFrom(
+              foregroundColor: sa.paper,
+              // Dimmed amber rather than grey: with nothing typed the button
+              // is not yet armed, but it is still the same button.
+              disabledBackgroundColor: sa.amber.withValues(alpha: 0.35),
+              disabledForegroundColor: sa.paper,
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(48, 48),
+              shape: const RoundedRectangleBorder(
+                borderRadius: SaRadius.smAll,
+              ),
             ),
+            child: const Icon(Icons.add_rounded, size: 24),
           ),
         ),
-        const SizedBox(width: 8),
-        FilledButton(onPressed: onSubmit, child: const Text('Adicionar')),
-      ],
+      ),
     );
   }
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.text, this.error = false});
+  const _Banner({
+    required this.text,
+    this.error = false,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final String text;
   final bool error;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -602,39 +568,133 @@ class _Banner extends StatelessWidget {
         borderRadius: SaRadius.smAll,
         border: Border.all(color: error ? sa.danger : sa.stroke, width: 1.5),
       ),
-      child: Text(
-        text,
-        style: theme.textTheme.labelMedium!.copyWith(
-          color: error ? sa.danger : sa.ink,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: theme.textTheme.labelMedium!.copyWith(
+              color: error ? sa.danger : sa.ink,
+            ),
+          ),
+          if (actionLabel != null) ...[
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 36),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                alignment: Alignment.centerLeft,
+              ),
+              child: Text(actionLabel!),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
-/// What the whole list costs at the picked market — with the coverage count in
-/// front of it, because a total over 6 of 10 items is not a shopping total.
-class _BasketSummary extends StatelessWidget {
-  const _BasketSummary({
-    required this.here,
-    required this.basket,
-    required this.itemCount,
-  });
+class _ProgressSummary extends StatelessWidget {
+  const _ProgressSummary({required this.checked, required this.total});
 
-  final Offer here;
-  final ListBasket basket;
-  final int itemCount;
+  final int checked;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sa = theme.sa;
-    final complete = basket.carried == itemCount;
+    final complete = total > 0 && checked == total;
+
+    return Row(
+      children: [
+        Icon(
+          complete
+              ? Icons.check_circle_rounded
+              : Icons.check_circle_outline_rounded,
+          color: total == 0 ? sa.muted : sa.green,
+          size: 22,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          total == 0
+              ? 'Adicione itens para começar'
+              : '$checked de $total itens concluídos',
+          style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyListHint extends StatelessWidget {
+  const _EmptyListHint({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Theme.of(context).sa.paper2,
+      borderRadius: SaRadius.mdAll,
+      border: Border.all(color: Theme.of(context).sa.stroke, width: 1.5),
+    ),
+    child: Text(
+      'Sua lista está vazia. Escreva do seu jeito — categoria (Carne), marca (Toddy) ou com '
+      'quantidade (4x Tomates) — e a Mia procura o melhor preço por perto.',
+      style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: color),
+    ),
+  );
+}
+
+class _AllItemsDoneHint extends StatelessWidget {
+  const _AllItemsDoneHint({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    child: Text(
+      'Tudo pronto — você já pegou todos os itens.',
+      style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: color),
+    ),
+  );
+}
+
+class _MarketSummary extends StatelessWidget {
+  const _MarketSummary({
+    required this.market,
+    required this.itemCount,
+    required this.selected,
+    required this.onChange,
+    required this.onCompare,
+  });
+
+  final MarketOption market;
+  final int itemCount;
+  final bool selected;
+  final VoidCallback? onChange;
+  final VoidCallback? onCompare;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+    final where = [
+      market.store ?? 'Loja',
+      if ((market.bairro ?? '').isNotEmpty) market.bairro!,
+      if (market.km != null) '(${_num(market.km!)} km)',
+    ].join(' · ');
+    final complete = market.count == itemCount;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: sa.paper,
+        color: sa.tintGreen,
         borderRadius: SaRadius.mdAll,
         border: Border.all(color: sa.stroke, width: 1.5),
       ),
@@ -643,36 +703,122 @@ class _BasketSummary extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.storefront_rounded, size: 18, color: sa.ink),
-              const SizedBox(width: 6),
+              Icon(Icons.verified_rounded, size: 20, color: sa.green),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  storeLabel(here),
+                  selected
+                      ? 'Mercado escolhido'
+                      : 'Melhor mercado para sua lista',
                   style: theme.textTheme.titleSmall,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(where, style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),
           Text.rich(
             TextSpan(
-              style: theme.textTheme.bodyMedium!.copyWith(
-                color: complete ? sa.ink : sa.muted,
-              ),
+              style: theme.textTheme.bodyMedium!.copyWith(color: sa.muted),
               children: [
                 TextSpan(
                   text:
-                      '${basket.carried} de $itemCount '
-                      '${_plural(itemCount, "item", "itens")} · total ',
+                      '${market.count} de $itemCount '
+                      '${_plural(itemCount, "item", "itens")} · '
+                      '${complete ? "total" : "estimativa parcial"} ',
                 ),
                 TextSpan(
-                  text: formatBRL(basket.totalCents),
+                  text: formatBRL(market.totalCents),
                   style: theme.textTheme.titleSmall!.copyWith(color: sa.green),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onChange,
+                  icon: const Icon(Icons.cached_rounded, size: 18),
+                  label: const Text('Trocar mercado'),
+                  style: OutlinedButton.styleFrom(
+                    // Ink, not amber: only one of the two buttons is the
+                    // action being suggested, and it is "Comparar".
+                    foregroundColor: sa.ink,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onCompare,
+                  icon: const Icon(Icons.compare_arrows_rounded, size: 18),
+                  label: const Text('Comparar'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _CompletedItemsSection extends StatelessWidget {
+  const _CompletedItemsSection({
+    required this.items,
+    required this.pricing,
+    required this.cod,
+    required this.onReorder,
+  });
+
+  final List<ListItem> items;
+  final Set<String> pricing;
+  final String? cod;
+  final void Function(int oldIndex, int newIndex) onReorder;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+
+    return Theme(
+      data: theme.copyWith(dividerColor: Colors.transparent),
+      child: Container(
+        decoration: BoxDecoration(
+          color: sa.paper2,
+          borderRadius: SaRadius.mdAll,
+          border: Border.all(color: sa.stroke, width: 1.5),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+            childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            leading: Icon(Icons.check_circle_outline_rounded, color: sa.muted),
+            title: Text('Já peguei (${items.length})'),
+            children: [
+              _ReorderableItemsCard(
+                items: items,
+                pricing: pricing,
+                cod: cod,
+                onReorder: onReorder,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -683,65 +829,65 @@ class _ReorderableItemsCard extends ConsumerWidget {
     required this.items,
     required this.pricing,
     required this.cod,
+    required this.onReorder,
   });
 
   final List<ListItem> items;
   final Set<String> pricing;
   final String? cod;
+  final void Function(int oldIndex, int newIndex) onReorder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sa = Theme.of(context).sa;
-    final controller = ref.read(listaControllerProvider.notifier);
-
-    return Material(
-      color: sa.paper,
-      shape: RoundedRectangleBorder(
-        borderRadius: SaRadius.mdAll,
-        side: BorderSide(color: sa.stroke, width: 1.5),
-      ),
-      child: ReorderableListView.builder(
-        shrinkWrap: true,
-        buildDefaultDragHandles: false,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        itemCount: items.length,
-        onReorder: controller.reorder,
-        proxyDecorator: (child, index, animation) => Material(
-          color: sa.paper,
-          shape: RoundedRectangleBorder(
-            borderRadius: SaRadius.smAll,
-            side: BorderSide(color: sa.stroke, width: 1.5),
-          ),
-          elevation: 4,
-          child: child,
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      buildDefaultDragHandles: false,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: items.length,
+      onReorderItem: onReorder,
+      proxyDecorator: (child, index, animation) => Material(
+        color: sa.paper,
+        shape: RoundedRectangleBorder(
+          borderRadius: SaRadius.mdAll,
+          side: BorderSide(color: sa.amber, width: 2),
         ),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return Container(
-            key: ValueKey(item.id),
-            decoration: index == items.length - 1
-                ? null
-                : BoxDecoration(
-                    border: Border(bottom: BorderSide(color: sa.stroke)),
+        elevation: 4,
+        child: child,
+      ),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return Container(
+          key: ValueKey(item.id),
+          margin: EdgeInsets.only(bottom: index == items.length - 1 ? 0 : 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: sa.paper,
+            borderRadius: SaRadius.mdAll,
+            border: Border.all(color: sa.stroke, width: 1.5),
+          ),
+          child: _ItemRow(
+            item: item,
+            loading: pricing.contains(item.id),
+            cod: cod,
+            dragHandle: ReorderableDragStartListener(
+              index: index,
+              child: SizedBox(
+                width: 26,
+                height: 40,
+                child: Center(
+                  child: Icon(
+                    Icons.drag_indicator_rounded,
+                    size: 20,
+                    color: sa.muted,
                   ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: _ItemRow(
-              item: item,
-              loading: pricing.contains(item.id),
-              cod: cod,
-              dragHandle: ReorderableDragStartListener(
-                index: index,
-                child: Icon(
-                  Icons.drag_indicator_rounded,
-                  size: 20,
-                  color: sa.muted,
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -769,19 +915,20 @@ class _ItemRow extends ConsumerWidget {
     final active = activeOption(item);
     final options = item.precos?.options ?? const <ProductOption>[];
     final confirmed = item.chosenKey != null || options.length <= 1;
+    final price = _priceView(
+      item: item,
+      active: active,
+      loading: loading,
+      cod: cod,
+      confirmed: confirmed,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Tooltip(
-                message: 'arrastar para reordenar',
-                child: dragHandle,
-              ),
-            ),
+            Tooltip(message: 'arrastar para reordenar', child: dragHandle),
             Checkbox(
               value: item.checked,
               onChanged: (_) => controller.toggle(item.id),
@@ -789,7 +936,7 @@ class _ItemRow extends ConsumerWidget {
               visualDensity: VisualDensity.compact,
             ),
             CatChip(description: item.name, ncm: active?.ncm),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -808,7 +955,7 @@ class _ItemRow extends ConsumerWidget {
                       },
                       child: Text(
                         item.name,
-                        style: theme.textTheme.bodyMedium!.copyWith(
+                        style: theme.textTheme.titleSmall!.copyWith(
                           color: item.checked ? sa.muted : sa.ink,
                           decoration: item.checked
                               ? TextDecoration.lineThrough
@@ -828,31 +975,53 @@ class _ItemRow extends ConsumerWidget {
                         color: sa.muted,
                       ),
                     ),
+                  const SizedBox(height: 2),
+                  _QtyRow(item: item, controller: controller),
+                  // Which product that price is for, and its per-unit price —
+                  // right under the amount it multiplies.
+                  if (price.subtitle.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        price.subtitle,
+                        style: theme.textTheme.labelMedium!.copyWith(
+                          color: sa.muted,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                 ],
               ),
             ),
-            IconButton(
-              onPressed: () => controller.remove(item.id),
-              icon: const Icon(Icons.close_rounded, size: 18),
-              color: sa.muted,
-              tooltip: 'remover ${item.name}',
-              visualDensity: VisualDensity.compact,
+            // Remove on top, the line total under it — the two things that
+            // belong to the row as a whole rather than to any one line of it.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: () => controller.remove(item.id),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                  color: sa.muted,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'remover ${item.name}',
+                ),
+                if (price.total != null)
+                  // Capped so a two-market *range* wraps instead of squeezing
+                  // the stepper beside it off the card.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 80),
+                    child: Text(
+                      price.total!,
+                      textAlign: TextAlign.right,
+                      style: theme.textTheme.titleSmall!.copyWith(
+                        color: sa.green,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 2),
-          child: _QtyRow(item: item, controller: controller),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: _PriceLine(
-            item: item,
-            active: active,
-            loading: loading,
-            cod: cod,
-            confirmed: confirmed,
-          ),
         ),
         if (options.length > 1)
           _Collapse(
@@ -941,39 +1110,47 @@ class _QtyRow extends StatelessWidget {
     final sa = theme.sa;
     final size = item.size;
 
-    return Row(
+    // A Wrap, not a Row: the stepper shares a narrow column with the price, and
+    // a line carrying both a size and the "?" marker would otherwise overflow.
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        _StepButton(
-          icon: Icons.remove_rounded,
-          label: 'menos',
-          onTap: () => _bump(-_step),
-        ),
-        SizedBox(
-          width: 48,
-          child: Text(
-            // The number only — the unit is the dropdown right beside it.
-            _num(item.qty),
-            textAlign: TextAlign.center,
-            style: theme.textTheme.labelLarge,
-            semanticsLabel: 'quantidade de ${item.name}: ${_qtyText(item)}',
-          ),
-        ),
-        _StepButton(
-          icon: Icons.add_rounded,
-          label: 'mais',
-          onTap: () => _bump(_step),
-        ),
-        const SizedBox(width: 10),
-        DropdownButton<String>(
-          value: item.unit,
-          isDense: true,
-          underline: const SizedBox.shrink(),
-          style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
-          onChanged: (u) => u == null ? null : controller.setUnit(item.id, u),
-          items: const [
-            DropdownMenuItem(value: 'un', child: Text('un')),
-            DropdownMenuItem(value: 'kg', child: Text('kg')),
-            DropdownMenuItem(value: 'L', child: Text('L')),
+        Row(
+          children: [
+            _StepButton(
+              icon: Icons.remove_rounded,
+              label: 'menos',
+              onTap: () => _bump(-_step),
+            ),
+            SizedBox(
+              width: 28,
+              child: Text(
+                // The number only — the unit is the dropdown right beside it.
+                _num(item.qty),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelLarge,
+                semanticsLabel: 'quantidade de ${item.name}: ${_qtyText(item)}',
+              ),
+            ),
+            DropdownButton<String>(
+              value: item.unit,
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+              onChanged: (u) =>
+                  u == null ? null : controller.setUnit(item.id, u),
+              items: const [
+                DropdownMenuItem(value: 'un', child: Text('un')),
+                DropdownMenuItem(value: 'kg', child: Text('kg')),
+                DropdownMenuItem(value: 'L', child: Text('L')),
+              ],
+            ),
+            const SizedBox(width: 2),
+            _StepButton(
+              icon: Icons.add_rounded,
+              label: 'mais',
+              onTap: () => _bump(_step),
+            ),
           ],
         ),
         // The package size the shopper actually asked for — display-only
@@ -1210,9 +1387,10 @@ class _StepButton extends StatelessWidget {
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: Icon(icon, size: 16, color: sa.ink),
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Center(child: Icon(icon, size: 16, color: sa.ink)),
           ),
         ),
       ),
@@ -1220,110 +1398,74 @@ class _StepButton extends StatelessWidget {
   }
 }
 
-/// The row's price, in whichever of its states is true — never a fabricated
-/// zero.
-class _PriceLine extends StatelessWidget {
-  const _PriceLine({
-    required this.item,
-    required this.active,
-    required this.loading,
-    required this.cod,
-    required this.confirmed,
-  });
+/// The row's money, in whichever of its states is true — never a fabricated
+/// zero. [subtitle] is the grey line under the stepper (which product, at what
+/// unit price, or why there is no price); [total] is the green line total on the
+/// right, null whenever there isn't one. A function rather than a widget because
+/// the two halves land in different columns of the row.
+({String subtitle, String? total}) _priceView({
+  required ListItem item,
+  required ProductOption? active,
+  required bool loading,
+  required String? cod,
+  required bool confirmed,
+}) {
+  ({String subtitle, String? total}) state(String text) =>
+      (subtitle: text, total: null);
 
-  final ListItem item;
-  final ProductOption? active;
-  final bool loading;
-  final String? cod;
-  final bool confirmed;
+  if (loading) return state('procurando preços…');
+  if (item.precos == null) {
+    return state('preço indisponível — toque em "atualizar preços"');
+  }
+  // An unconfirmed vague term has no price of its own yet: the options below
+  // are the question, and a price beside it would answer a different one.
+  if (!confirmed && item.precos!.options.isNotEmpty) return state('');
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final sa = theme.sa;
-    final body = theme.textTheme.labelMedium!;
-    final muted = body.copyWith(color: sa.muted);
+  final name = (active?.name ?? '').isEmpty ? null : active!.name!;
+  String subtitleWith(String? detail) => [?name, ?detail].join(' · ');
 
-    if (loading) return Text('procurando preços…', style: muted);
-    if (item.precos == null) {
-      return Text(
-        'preço indisponível — toque em "atualizar preços"',
-        style: muted,
+  if (cod != null) {
+    final here = offerAt(item, cod);
+    if (here == null) {
+      return state(
+        (active?.stores.isNotEmpty ?? false)
+            ? 'sem preço neste mercado'
+            : 'sem preço por perto',
       );
     }
-
-    final options = item.precos!.options;
-    if (!confirmed && options.isNotEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    if (cod != null) {
-      final here = offerAt(item, cod!);
-      if (here == null) {
-        return Text(
-          (active?.stores.isNotEmpty ?? false)
-              ? 'sem preço neste mercado'
-              : 'sem preço por perto',
-          style: muted,
-        );
-      }
-      return Text.rich(
-        TextSpan(
-          style: body,
-          children: [
-            if ((active?.name ?? '').isNotEmpty)
-              TextSpan(text: '${active!.name} '),
-            TextSpan(
-              text: formatBRL(lineCents(here.priceCents, item.qty)),
-              style: theme.textTheme.titleSmall!.copyWith(color: sa.green),
-            ),
-            if (item.qty != 1)
-              TextSpan(
-                text: ' (${_qtyText(item)} × ${formatBRL(here.priceCents)})',
-                style: muted,
-              ),
-          ],
-        ),
-      );
-    }
-
-    final pricedStores = [
-      for (final s in active?.stores ?? const <Offer>[])
-        if (s.priceCents > 0) s,
-    ];
-    if (pricedStores.isEmpty) return Text('sem preço por perto', style: muted);
-    var minLineCents = lineCents(pricedStores.first.priceCents, item.qty);
-    var maxLineCents = minLineCents;
-    for (final s in pricedStores.skip(1)) {
-      final line = lineCents(s.priceCents, item.qty);
-      if (line < minLineCents) minLineCents = line;
-      if (line > maxLineCents) maxLineCents = line;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if ((active?.name ?? '').isNotEmpty) Text(active!.name!, style: body),
-        Text.rich(
-          TextSpan(
-            style: body,
-            children: [
-              TextSpan(
-                text: formatRangeBRL(minLineCents, maxLineCents),
-                style: theme.textTheme.titleSmall!.copyWith(color: sa.green),
-              ),
-              if (item.qty != 1 && minLineCents == maxLineCents)
-                TextSpan(
-                  text:
-                      ' (${_qtyText(item)} × ${formatBRL(pricedStores.first.priceCents)})',
-                  style: muted,
-                ),
-            ],
-          ),
-        ),
-      ],
+    return (
+      subtitle: subtitleWith(
+        item.qty == 1
+            ? null
+            : '${_qtyText(item)} × ${formatBRL(here.priceCents)}',
+      ),
+      total: formatBRL(lineCents(here.priceCents, item.qty)),
     );
   }
+
+  final pricedStores = [
+    for (final s in active?.stores ?? const <Offer>[])
+      if (s.priceCents > 0) s,
+  ];
+  if (pricedStores.isEmpty) return state('sem preço por perto');
+  var minLineCents = lineCents(pricedStores.first.priceCents, item.qty);
+  var maxLineCents = minLineCents;
+  for (final s in pricedStores.skip(1)) {
+    final line = lineCents(s.priceCents, item.qty);
+    if (line < minLineCents) minLineCents = line;
+    if (line > maxLineCents) maxLineCents = line;
+  }
+
+  return (
+    // One unit price is only quotable when every market agrees on it; a range
+    // of totals over a range of unit prices is two numbers, not a breakdown.
+    subtitle: subtitleWith(
+      item.qty != 1 && minLineCents == maxLineCents
+          ? '${_qtyText(item)} × ${formatBRL(pricedStores.first.priceCents)}'
+          : null,
+    ),
+    total: formatRangeBRL(minLineCents, maxLineCents),
+  );
 }
 
 /// One candidate product behind a vague term ("Carne", "Toddy"), with what it
@@ -1467,81 +1609,20 @@ class _Collapse extends StatelessWidget {
     final theme = Theme.of(context);
     return Theme(
       data: theme.copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(bottom: 8),
-        title: Text(
-          title,
-          style: theme.textTheme.labelLarge!.copyWith(
-            color: theme.sa.amberPress,
-          ),
-        ),
-        children: [
-          for (final child in children)
-            Align(alignment: Alignment.centerLeft, child: child),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Prices menu (store + markets)
-// ---------------------------------------------------------------------------
-
-sealed class _PricesAction {
-  const _PricesAction();
-}
-
-class _TrocarLoja extends _PricesAction {
-  const _TrocarLoja();
-}
-
-class _VerMercados extends _PricesAction {
-  const _VerMercados();
-}
-
-class _PricesMenu extends StatelessWidget {
-  const _PricesMenu({
-    required this.currentStore,
-    required this.marketCount,
-    required this.onTapStore,
-    required this.onTapMarkets,
-  });
-
-  final Offer? currentStore;
-  final int marketCount;
-  final VoidCallback onTapStore;
-  final VoidCallback onTapMarkets;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Preços', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Trocar loja'),
-              subtitle: currentStore != null
-                  ? Text(storeLabel(currentStore!))
-                  : null,
-              onTap: onTapStore,
+      child: Material(
+        color: Colors.transparent,
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          title: Text(
+            title,
+            style: theme.textTheme.labelLarge!.copyWith(
+              color: theme.sa.amberPress,
             ),
-            if (marketCount > 0)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Ver mercados próximos ($marketCount)'),
-                onTap: onTapMarkets,
-              ),
+          ),
+          children: [
+            for (final child in children)
+              Align(alignment: Alignment.centerLeft, child: child),
           ],
         ),
       ),
@@ -1554,18 +1635,16 @@ class _PricesMenu extends StatelessWidget {
 class _MarketsSheet extends StatelessWidget {
   const _MarketsSheet({
     required this.markets,
-    required this.itemCount,
+    required this.items,
     required this.anchorCod,
     required this.split,
-    required this.unpriced,
     required this.onRefresh,
   });
 
   final List<MarketOption> markets;
-  final int itemCount;
+  final List<ListItem> items;
   final String anchorCod;
   final SplitOption? split;
-  final int unpriced;
   final VoidCallback onRefresh;
 
   @override
@@ -1573,6 +1652,8 @@ class _MarketsSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final sa = theme.sa;
     final anchor = markets.firstWhere((m) => m.cod == anchorCod);
+    final itemCount = items.length;
+    final unpriced = items.where((i) => activeOption(i) == null).length;
 
     return SafeArea(
       top: false,
@@ -1605,12 +1686,12 @@ class _MarketsSheet extends StatelessWidget {
                   // not quietly stand in for the answer.
                   _SheetLabel('Melhor para a sua lista'),
                   const SizedBox(height: 6),
-                  _PickRow(market: markets.first, itemCount: itemCount),
+                  _PickRow(market: markets.first, items: items),
                   if (anchor.cod != markets.first.cod) ...[
                     const SizedBox(height: 12),
                     _SheetLabel('O mercado escolhido'),
                     const SizedBox(height: 6),
-                    _PickRow(market: anchor, itemCount: itemCount),
+                    _PickRow(market: anchor, items: items),
                   ],
                   const SizedBox(height: 14),
                   _SheetLabel('Vale dividir em dois mercados?'),
@@ -1634,7 +1715,7 @@ class _MarketsSheet extends StatelessWidget {
                   for (final m in markets)
                     _PickRow(
                       market: m,
-                      itemCount: itemCount,
+                      items: items,
                       selected: m.cod == anchorCod,
                     ),
                   // Prices that never arrived are in no market's basket, so
@@ -1674,30 +1755,108 @@ class _MarketsSheet extends StatelessWidget {
 class _PickRow extends StatelessWidget {
   const _PickRow({
     required this.market,
-    required this.itemCount,
+    required this.items,
     this.selected = true,
   });
 
   final MarketOption market;
-  final int itemCount;
+  final List<ListItem> items;
   final bool selected;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      onTap: () => Navigator.pop(context, market.cod),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: _MarketRow(
-          market: market,
-          itemCount: itemCount,
-          selected: selected,
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Material(
+        color: Colors.transparent,
+        child: InkWell(
           onTap: () => Navigator.pop(context, market.cod),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: _MarketRow(
+              market: market,
+              itemCount: items.length,
+              selected: selected,
+              onTap: () => Navigator.pop(context, market.cod),
+            ),
+          ),
         ),
       ),
-    ),
+      // Closed by default: the summary is the answer, the itemisation is the
+      // evidence for it — and four open breakdowns would bury the comparison
+      // this sheet exists to make.
+      // Not "ver os N itens": the breakdown lists the whole list, including the
+      // lines this market doesn't sell, so any count in the label would be a
+      // promise it breaks.
+      _Collapse(
+        title: 'ver os itens',
+        children: [_BasketBreakdown(lines: basketLinesAt(items, market.cod))],
+      ),
+    ],
   );
+}
+
+/// One market's basket, line by line: the product matched, how much of it, and
+/// what that comes to there.
+class _BasketBreakdown extends StatelessWidget {
+  const _BasketBreakdown({required this.lines});
+
+  final List<BasketLine> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sa = theme.sa;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${line.item.name} · ${_qtyText(line.item)}',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      // Which product that price is actually for — "Carne" is
+                      // not a price, "CARNE MOIDA BOVINA KG" is.
+                      if (line.product != null)
+                        Text(
+                          line.product!,
+                          style: theme.textTheme.labelMedium!.copyWith(
+                            color: sa.muted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                line.offer == null
+                    ? Text(
+                        'não vende aqui',
+                        style: theme.textTheme.labelMedium!.copyWith(
+                          color: sa.muted,
+                        ),
+                      )
+                    : Text(
+                        formatBRL(line.totalCents),
+                        style: theme.textTheme.titleSmall!.copyWith(
+                          color: sa.green,
+                        ),
+                      ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _SheetLabel extends StatelessWidget {
@@ -1749,15 +1908,15 @@ class _SplitCard extends StatelessWidget {
         children: [
           Text('Indo também ao $where$km', style: theme.textTheme.titleSmall),
           const SizedBox(height: 6),
-          if (split.cheaperCount > 0)
+          if (split.cheaper.isNotEmpty) ...[
             Text.rich(
               TextSpan(
                 style: theme.textTheme.bodyMedium,
                 children: [
                   TextSpan(
                     text:
-                        '${split.cheaperCount} ${_plural(split.cheaperCount, "item", "itens")} '
-                        'mais ${_plural(split.cheaperCount, "barato", "baratos")} lá · dá pra economizar ',
+                        '${split.cheaper.length} ${_plural(split.cheaper.length, "item", "itens")} '
+                        'mais ${_plural(split.cheaper.length, "barato", "baratos")} lá · dá pra economizar ',
                   ),
                   TextSpan(
                     text: formatBRL(split.savedCents),
@@ -1768,20 +1927,32 @@ class _SplitCard extends StatelessWidget {
                 ],
               ),
             ),
-          if (split.extraCount > 0)
+            // Which ones. Advice you can act on beats a count you can't.
             Text(
-              '+ ${split.extraCount} ${_plural(split.extraCount, "item", "itens")} que '
+              split.cheaper.map((i) => '${i.name} (${_qtyText(i)})').join(', '),
+              style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+            ),
+          ],
+          if (split.extra.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              '+ ${split.extra.length} ${_plural(split.extra.length, "item", "itens")} que '
               '${anchor.store ?? "o outro mercado"} não tem',
               style: theme.textTheme.bodyMedium,
             ),
+            Text(
+              split.extra.map((i) => '${i.name} (${_qtyText(i)})').join(', '),
+              style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
+            ),
+          ],
           const SizedBox(height: 6),
           Text(
             // The one-market total is only quoted alongside when the split
             // covers exactly the same items. With extras it covers more, and
             // two totals over different shopping are not a comparison.
-            'Os dois juntos: ${anchor.count + split.extraCount} de $itemCount '
+            'Os dois juntos: ${anchor.count + split.extra.length} de $itemCount '
             '${_plural(itemCount, "item", "itens")} · ${formatBRL(split.totalCents)}'
-            '${split.extraCount == 0 ? ' (só em ${anchor.store ?? "um mercado"}: ${formatBRL(anchor.totalCents)})' : ''}',
+            '${split.extra.isEmpty ? ' (só em ${anchor.store ?? "um mercado"}: ${formatBRL(anchor.totalCents)})' : ''}',
             style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
           ),
         ],
@@ -1826,17 +1997,12 @@ class _Delete extends _ListAction {
 class _ListHeader extends StatelessWidget {
   const _ListHeader({
     required this.name,
-    required this.count,
     required this.onTap,
     required this.onShare,
     required this.canShare,
   });
 
   final String name;
-
-  /// How many lists exist. One is the ordinary case, so the "de N" suffix only
-  /// appears once there is genuinely a choice to make.
-  final int count;
   final VoidCallback onTap;
   final VoidCallback onShare;
   final bool canShare;
@@ -1846,40 +2012,70 @@ class _ListHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final sa = theme.sa;
 
-    return Material(
-      color: sa.paper2,
-      borderRadius: SaRadius.smAll,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: SaRadius.smAll,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              Icon(Icons.list_alt_rounded, size: 18, color: sa.ink),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  name,
-                  style: theme.textTheme.titleSmall,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (count > 1)
-                Text(
-                  '1 de $count  ',
-                  style: theme.textTheme.labelMedium!.copyWith(color: sa.muted),
-                ),
-              IconButton(
-                onPressed: canShare ? onShare : null,
-                icon: const Icon(Icons.share_rounded, size: 19),
-                tooltip: 'compartilhar $name',
-                visualDensity: VisualDensity.compact,
-              ),
-              Icon(Icons.expand_more_rounded, color: sa.muted),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: sa.paper,
+        borderRadius: SaRadius.mdAll,
+        border: Border.all(color: sa.stroke, width: 1.5),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(color: sa.paper2, shape: BoxShape.circle),
+            child: Icon(Icons.list_alt_rounded, size: 18, color: sa.ink),
           ),
-        ),
+          const SizedBox(width: 8),
+          // The name and the caret are one target, and the ⋮ beside it is the
+          // other — both open the same menu, which is also where the other
+          // lists are, so "trocar de lista" is reachable from either.
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: SaRadius.smAll,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: SaRadius.smAll,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          name,
+                          style: theme.textTheme.titleMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.expand_more_rounded, size: 20, color: sa.ink),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: onTap,
+            icon: const Icon(Icons.more_vert_rounded, size: 20),
+            color: sa.ink,
+            visualDensity: VisualDensity.compact,
+            tooltip: 'opções da lista',
+          ),
+          Container(width: 1.5, height: 24, color: sa.stroke),
+          IconButton(
+            onPressed: canShare ? onShare : null,
+            icon: const Icon(Icons.share_rounded, size: 19),
+            color: sa.ink,
+            visualDensity: VisualDensity.compact,
+            tooltip: 'compartilhar $name',
+          ),
+        ],
       ),
     );
   }
