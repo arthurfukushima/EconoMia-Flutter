@@ -3,7 +3,7 @@ import { norm, distinctiveStoreTokens, g14 } from '../src/lib/text.js';
 import { classify } from '../src/lib/categoria.js';
 import {
   significantTokens, parseSize, sizesOverlap, hasClassBlock, hasNewVariant,
-  scoreOffer, productSignature,
+  scoreOffer, productSignature, variantMarkersOf,
 } from '../src/lib/match.js';
 import { lookupCanonical } from './lib/canonical.js';
 import { persistRawPrices } from './lib/rawprices.js';
@@ -185,6 +185,20 @@ function summarize(candidates) {
   };
 }
 
+// Upstream sometimes assigns one GTIN to more than one real formulation ("Coca-Cola
+// Zero" and regular Coca-Cola sharing a barcode is a documented case — see
+// backend/public/reports/grouping.html §05). A bare GTIN key would blend their prices
+// into one bogus range. Namespaced by size + named variant markers (never full
+// significantTokens/productSignature — abbreviation noise on ordinary store text, e.g.
+// "RODO PRAT CSA UN" vs "RODO PRATICO" for the *same* barcode, would false-split those
+// instead), so only a loud, unambiguous size/formulation disagreement sub-splits a GTIN
+// group; everyday spelling variance still collapses into one option.
+function gtinSubKey(desc) {
+  const sizes = (parseSize(desc) || []).map((s) => `${s.unit}${s.value}`).sort().join(',');
+  const variants = [...variantMarkersOf(desc)].sort().join(',');
+  return `${sizes}|${variants}`;
+}
+
 // A vague term ("Carne", "Toddy") matches several real products; group the candidates so
 // the user can pick the right one instead of the blind cheapest. Group by GTIN (branded)
 // or a token/size signature (produce, or GTIN-less offers) — productSignature is more
@@ -196,7 +210,8 @@ function summarize(candidates) {
 function buildOptions(candidates, queryText) {
   const groups = new Map();
   for (const p of candidates) {
-    const key = g14(p.gtin) || productSignature(p.desc);
+    const gtin = g14(p.gtin);
+    const key = gtin ? `${gtin}|${gtinSubKey(p.desc)}` : productSignature(p.desc);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(p);
   }
@@ -236,11 +251,15 @@ export async function analyzeItem(item, produtos, storeTokens, city) {
   const options = buildOptions(candidates, item.description);
   // The collapsed "cheapest"/name shown before any option is explicitly picked must
   // reflect the literal product asked for, not a demoted variant (Zero, Retornável, ...)
-  // — same tier-1 rule buildOptions ranks options by. A bare category query can turn up
+  // — same tier-1 rule buildOptions ranks options by. Applies on the GTIN path too: a
+  // recovered GTIN's own item.description is the exact same-store text that earned the
+  // match (recoverGtin), a real description, not a blind barcode — so it's a legitimate
+  // variant reference, and skipping this filter is exactly how "Zero and regular share a
+  // barcode" used to poison the collapsed cheapest. A bare category query can turn up
   // only variants; when tier 1 is empty, fall back to every surviving candidate rather
   // than report no price at all.
-  let primary = gtin ? candidates : candidates.filter((p) => !hasNewVariant(item.description, p.desc));
-  if (!gtin && primary.length === 0) primary = candidates;
+  let primary = candidates.filter((p) => !hasNewVariant(item.description, p.desc));
+  if (primary.length === 0) primary = candidates;
   return {
     gtin, basis: gtin ? 'gtin' : (canonical ? 'canonical' : 'desc'), confidence: gtin ? 'high' : 'approx',
     ...summarize(primary), name: representativeDesc(primary), ncm: representativeNcm(primary),

@@ -186,6 +186,40 @@ describe('regression: size/product-class guards on a packaged query ("Coca Cola 
   });
 });
 
+describe('regression: a shared upstream GTIN blending plain Coca Cola with Coca Cola Zero', () => {
+  // Real production case (backend/public/reports/grouping.html §05): one barcode
+  // upstream carries both the regular drink and its Zero formulation. candidatesFor's
+  // gtin branch can't reject either (a GTIN match is the strongest signal there is —
+  // rejecting on text there would be backwards), so the split has to happen after: in
+  // buildOptions' grouping key and in analyzeItem's "collapsed cheapest" filter.
+  const g = '7894900700015';
+  const produtos = [
+    { desc: 'REFRIG COCA COLA 2L', gtin: g, valor: '7.49', estabelecimento: est('SUPER MUFFATO', 'm1', { nm_emp: 'IRMAOS MUFFATO E CIA LTDA' }) },
+    { desc: 'COCA COLA ZERO 2L', gtin: g, valor: '6.49', estabelecimento: est('MERCADO D', 'd') },
+    { desc: 'COCA COLA ZERO 2L', gtin: g, valor: '6.49', estabelecimento: est('MERCADO E', 'e') },
+    { desc: 'COCA-COLA ZERO 2 LITROS', gtin: g, valor: '6.50', estabelecimento: est('MERCADO F', 'f') }, // same Zero, different store text
+  ];
+  const item = { description: 'REFRIG COCA COLA 2L', unit: '' };
+
+  it('does not let the (cheaper) Zero offers answer a plain Coca Cola query', async () => {
+    const r = await analyzeItem(item, produtos, STORE, CITY);
+    expect(r.basis).toBe('gtin');
+    expect(r.cheapest.priceCents).toBe(749); // the only REFRIG offer, not a Zero price
+    expect(r.nStores).toBe(1);
+  });
+
+  it('splits the one barcode into separate tiered options instead of one blended group', async () => {
+    const r = await analyzeItem(item, produtos, STORE, CITY);
+    expect(r.options).toHaveLength(2);
+    expect(r.options[0].tier).toBe(1);
+    expect(r.options[0].name).toBe('REFRIG COCA COLA 2L');
+    expect(r.options[0].cheapest.priceCents).toBe(749);
+    expect(r.options[1].tier).toBe(2);
+    expect(r.options[1].nStores).toBe(3); // 3 differently-formatted Zero offers, one option
+    expect(r.options[1].cheapest.priceCents).toBe(649);
+  });
+});
+
 describe('regression: NCM-category disagreement separates a product from its derivative ("Leite" vs "Doce de Leite")', () => {
   it('excludes the candy when NCM chapters disagree', async () => {
     const produtos = [

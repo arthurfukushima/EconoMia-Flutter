@@ -120,7 +120,7 @@ export function hasClassBlock(text) {
   return false;
 }
 
-function variantMarkersOf(text) {
+export function variantMarkersOf(text) {
   const t = norm(text);
   const toks = new Set(tokensOf(text));
   const found = new Set();
